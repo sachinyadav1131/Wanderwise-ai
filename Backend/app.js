@@ -1,5 +1,8 @@
-import cors from "cors";
 import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser"; // Ensure this is installed: npm install cookie-parser
+import authRoutes from "./routes/authRoutes.js";
+import { errorMiddleware } from "./middleware/errorMiddleware.js";
 
 export const app = express();
 
@@ -12,11 +15,15 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+
+app.use("/api/v1/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Wanderwise backend is running",
+    message: "Wanderwise AI backend is running",
   });
 });
 
@@ -26,3 +33,5 @@ app.get("/api/health", (req, res) => {
     message: "Server health check passed",
   });
 });
+
+app.use(errorMiddleware);
