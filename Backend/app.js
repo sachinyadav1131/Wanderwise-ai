@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser"; // Ensure this is installed: npm install cookie-parser
 import authRoutes from "./routes/authRoutes.js";
+import tripRoutes from "./routes/tripRoutes.js";
+import itineraryRoutes from "./routes/itineraryRoutes.js";
 import { errorMiddleware } from "./middleware/errorMiddleware.js";
 
 export const app = express();
@@ -19,6 +21,8 @@ app.use(cookieParser());
 
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/trips", tripRoutes);
+app.use("/api/v1/itineraries", itineraryRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({
