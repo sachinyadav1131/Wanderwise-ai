@@ -5,6 +5,10 @@ import authRoutes from "./routes/authRoutes.js";
 import tripRoutes from "./routes/tripRoutes.js";
 import itineraryRoutes from "./routes/itineraryRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import suggestionRoutes from "./routes/suggestionRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import agentLogRoutes from "./routes/agentLogRoutes.js";
 import { errorMiddleware } from "./middleware/errorMiddleware.js";
 
 export const app = express();
@@ -25,6 +29,10 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/trips", tripRoutes);
 app.use("/api/v1/itineraries", itineraryRoutes);
 app.use("/api/v1/activities", activityRoutes);
+app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1/suggestions", suggestionRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/agent-logs", agentLogRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({
