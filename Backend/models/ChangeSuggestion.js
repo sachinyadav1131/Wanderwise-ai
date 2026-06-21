@@ -9,7 +9,7 @@ const changeSuggestionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected"],
+      enum: ["Pending", "Processing", "Approved", "Rejected", "Expired"],
       default: "Pending",
     },
     triggerType: {
@@ -31,6 +31,11 @@ const changeSuggestionSchema = new mongoose.Schema(
     estimatedTimeImpact: {
       type: Number, // in minutes
       default: 0,
+    },
+    expiresAt: {
+      type: Date,
+      required: true,
+      default: () => new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours default expiration
     },
     beforeSnapshot: {
       activities: [mongoose.Schema.Types.Mixed],

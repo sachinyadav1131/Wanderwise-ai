@@ -30,12 +30,28 @@ export const weatherService = {
       ],
     };
 
-    const beforeSnapshot = { activities: [outdoorActivity.toObject()] };
+    // OPTIMIZATION: Store only affected activities in snapshots
+    const beforeSnapshot = {
+      activities: [outdoorActivity.toObject()],
+      staySuggestions: [],
+      foodSuggestions: []
+    };
+    
     const afterSnapshot = {
       activities: [
         { ...outdoorActivity.toObject(), status: "Moved", dayNumber: outdoorActivity.dayNumber + 1 },
-        { title: "Visit Crafts Museum (Indoor)", location: "Pragati Maidan", dayNumber: outdoorActivity.dayNumber, timeSlot: "Afternoon" }
-      ]
+        {
+          title: "Visit Crafts Museum (Indoor)",
+          description: "Rain backup indoor activity.",
+          dayNumber: outdoorActivity.dayNumber,
+          timeSlot: "Afternoon",
+          time: "02:00 PM",
+          location: "Pragati Maidan",
+          isAlternative: true,
+        }
+      ],
+      staySuggestions: [],
+      foodSuggestions: []
     };
 
     const suggestion = await ChangeSuggestion.create({
@@ -45,6 +61,7 @@ export const weatherService = {
       generatedSummary: "Postpone Lodhi Garden visit and detour to Crafts Museum (Indoor) due to severe rain forecast.",
       estimatedBudgetImpact: 0,
       estimatedTimeImpact: 0,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // expires in 24 hours
       beforeSnapshot,
       afterSnapshot,
       suggestedChanges,

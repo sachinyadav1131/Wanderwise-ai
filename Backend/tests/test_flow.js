@@ -8,6 +8,7 @@ import { ChangeSuggestion } from "../models/ChangeSuggestion.js";
 import { ChatMessage } from "../models/ChatMessage.js";
 import { aiService } from "../services/aiService.js";
 import { approveSuggestion } from "../controllers/suggestionController.js";
+import { DiffService } from "../services/DiffService.js";
 
 dotenv.config({ path: "./config/config.env" });
 
@@ -68,7 +69,7 @@ async function runTests() {
   console.log("Seeding complete. User, Trip, Itinerary, and India Gate activity created.");
 
   // 2. Test AI Chat Triggering ChangeSuggestion
-  console.log("\nTesting Chat suggestion generation...");
+  console.log("\nTesting Chat suggestion generation & snapshots...");
   await ChatMessage.create({
     trip: trip._id,
     sender: "User",
@@ -85,9 +86,88 @@ async function runTests() {
   if (suggestion.status !== "Pending" || suggestion.estimatedBudgetImpact !== 20) {
     throw new Error("FAIL: Suggestion schema values are incorrect.");
   }
-  console.log("PASS: ChangeSuggestion created with Pending status and snapshots.");
+  console.log("PASS: ChangeSuggestion created with Pending status.");
 
-  // 3. Test Idempotent Approval
+  // Snapshot Footprint Audit: verify only affected activities are in snapshot
+  if (suggestion.beforeSnapshot.activities.length !== 1) {
+    throw new Error(`FAIL: Snapshot size is not compact. Stored activities count: ${suggestion.beforeSnapshot.activities.length}`);
+  }
+  console.log("PASS: Snapshot stores only affected activities (length 1).");
+
+  // 3. Test Concurrency Lock (Processing lock)
+  console.log("\nTesting Concurrency Lock...");
+  suggestion.status = "Processing";
+  await suggestion.save();
+
+  let nextSpyCalled = false;
+  let resolveConflict;
+  const conflictPromise = new Promise(resolve => { resolveConflict = resolve; });
+
+  const nextSpyConflict = (err) => {
+    nextSpyCalled = true;
+    if (err.statusCode !== 409 || !err.message.toLowerCase().includes("process")) {
+      throw new Error(`FAIL: Concurrency error not handled properly: ${err.message}`);
+    }
+    resolveConflict();
+  };
+
+  const mockReqConflict = {
+    params: { id: suggestion._id },
+    user: { _id: user._id },
+  };
+
+  const mockResConflict = {
+    status: function() { return this; },
+    json: function() { return this; }
+  };
+
+  approveSuggestion(mockReqConflict, mockResConflict, nextSpyConflict);
+  await conflictPromise;
+
+  if (!nextSpyCalled) {
+    throw new Error("FAIL: Concurrency lock did not intercept request.");
+  }
+  console.log("PASS: Concurrency lock correctly blocks 'Processing' suggestions with 409.");
+
+  // Restore status back to Pending for subsequent tests
+  suggestion.status = "Pending";
+  await suggestion.save();
+
+  // 4. Test Expiration Check
+  console.log("\nTesting Suggestion Expiration...");
+  suggestion.expiresAt = new Date(Date.now() - 10000); // 10 seconds ago
+  await suggestion.save();
+
+  let nextSpyExpiredCalled = false;
+  let resolveExpired;
+  const expiredPromise = new Promise(resolve => { resolveExpired = resolve; });
+
+  const nextSpyExpired = (err) => {
+    nextSpyExpiredCalled = true;
+    if (err.statusCode !== 400 || !err.message.includes("expired")) {
+      throw new Error(`FAIL: Expiry check did not handle error properly: ${err.message}`);
+    }
+    resolveExpired();
+  };
+
+  approveSuggestion(mockReqConflict, mockResConflict, nextSpyExpired);
+  await expiredPromise;
+
+  if (!nextSpyExpiredCalled) {
+    throw new Error("FAIL: Expiry check did not intercept request.");
+  }
+  
+  const expiredSuggestion = await ChangeSuggestion.findById(suggestion._id);
+  if (expiredSuggestion.status !== "Expired") {
+    throw new Error("FAIL: Suggestion status was not transitioned to Expired.");
+  }
+  console.log("PASS: Expired suggestion block correctly intercepts and transitions to Expired status.");
+
+  // Seed another fresh suggestion for approval validation
+  const chatResult2 = await aiService.processChatMessage(trip, "It is going to rain today. What should I do?");
+  const suggestion2 = await ChangeSuggestion.findById(chatResult2.suggestionId);
+
+  // 5. Test Suggestion Approval
   console.log("\nTesting suggestion approval...");
   let resolveApproval1;
   const approvalPromise1 = new Promise(resolve => { resolveApproval1 = resolve; });
@@ -106,7 +186,7 @@ async function runTests() {
   };
 
   const mockReq = {
-    params: { id: suggestion._id },
+    params: { id: suggestion2._id },
     user: { _id: user._id },
   };
 
@@ -160,7 +240,15 @@ async function runTests() {
   }
   console.log("PASS: Duplicate approval request is idempotent and handles return gracefully.");
 
-  // 4. Cleanup
+  // 6. Test DiffService ID matching
+  console.log("\nTesting DiffService with stable IDs...");
+  const diffResult = DiffService.calculateDiff(suggestion2.beforeSnapshot, suggestion2.afterSnapshot);
+  if (diffResult.added.length !== 1 || diffResult.added[0].title !== "Visit National Museum") {
+    throw new Error("FAIL: DiffService stable ID comparison generated invalid details.");
+  }
+  console.log("PASS: DiffService successfully verified snapshot diffs.");
+
+  // 7. Cleanup
   await User.deleteMany({ email: "test_integration@wanderwise.com" });
   await Trip.deleteMany({ destination: "Integration Test City" });
   await ChangeSuggestion.deleteMany({});

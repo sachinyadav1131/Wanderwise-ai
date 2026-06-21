@@ -24,7 +24,13 @@ export class MockSuggestionEngine extends SuggestionEngine {
     // Scenario A: Weather detour
     if (lastMessage.includes("rain") || lastMessage.includes("weather")) {
       const target = activities.find(a => a.title.match(/India Gate/i));
-      const beforeSnapshot = { activities: activities.map(a => a.toObject()) };
+      
+      // OPTIMIZATION: Store only impacted activities
+      const beforeSnapshot = {
+        activities: target ? [target.toObject()] : [],
+        staySuggestions: [],
+        foodSuggestions: []
+      };
 
       const suggestedChanges = {
         activities: [
@@ -47,10 +53,20 @@ export class MockSuggestionEngine extends SuggestionEngine {
 
       const afterSnapshot = {
         activities: [
-          ...activities.filter(a => !target || a._id.toString() !== target._id.toString()).map(a => a.toObject()),
           ...(target ? [{ ...target.toObject(), status: "Moved", dayNumber: target.dayNumber + 1 }] : []),
-          { title: "Visit National Museum", location: "National Museum, Janpath", dayNumber: 1, timeSlot: "Afternoon" }
-        ]
+          {
+            title: "Visit National Museum",
+            description: "Rain backup indoor activity.",
+            dayNumber: 1,
+            timeSlot: "Afternoon",
+            time: "02:00 PM",
+            location: "National Museum, Janpath",
+            cost: 20,
+            isAlternative: true,
+          }
+        ],
+        staySuggestions: [],
+        foodSuggestions: []
       };
 
       const suggestion = await ChangeSuggestion.create({
@@ -60,6 +76,7 @@ export class MockSuggestionEngine extends SuggestionEngine {
         generatedSummary: "Move India Gate to tomorrow and visit the indoor National Museum today.",
         estimatedBudgetImpact: 20,
         estimatedTimeImpact: 30, // in minutes
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // expires in 24 hours
         beforeSnapshot,
         afterSnapshot,
         suggestedChanges,
@@ -75,7 +92,13 @@ export class MockSuggestionEngine extends SuggestionEngine {
     if (lastMessage.includes("india gate") && (lastMessage.includes("move") || lastMessage.includes("don't want"))) {
       const target = activities.find(a => a.title.match(/India Gate/i));
       if (target) {
-        const beforeSnapshot = { activities: activities.map(a => a.toObject()) };
+        // OPTIMIZATION: Store only impacted activities
+        const beforeSnapshot = {
+          activities: [target.toObject()],
+          staySuggestions: [],
+          foodSuggestions: []
+        };
+
         const suggestedChanges = {
           activities: [
             { action: "UPDATE", activityId: target._id, data: { dayNumber: target.dayNumber + 1, timeSlot: "Evening", time: "06:00 PM" } },
@@ -83,11 +106,11 @@ export class MockSuggestionEngine extends SuggestionEngine {
         };
 
         const afterSnapshot = {
-          activities: activities.map(a => 
-            a._id.toString() === target._id.toString() 
-              ? { ...a.toObject(), dayNumber: target.dayNumber + 1, timeSlot: "Evening", time: "06:00 PM" }
-              : a.toObject()
-          )
+          activities: [
+            { ...target.toObject(), dayNumber: target.dayNumber + 1, timeSlot: "Evening", time: "06:00 PM" }
+          ],
+          staySuggestions: [],
+          foodSuggestions: []
         };
 
         const suggestion = await ChangeSuggestion.create({
@@ -97,6 +120,7 @@ export class MockSuggestionEngine extends SuggestionEngine {
           generatedSummary: "Reschedule India Gate visit to tomorrow evening.",
           estimatedBudgetImpact: 0,
           estimatedTimeImpact: 0,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           beforeSnapshot,
           afterSnapshot,
           suggestedChanges,
@@ -119,7 +143,6 @@ export class MockSuggestionEngine extends SuggestionEngine {
 // Future FastAPI compatibility
 export class FastAPISuggestionEngine extends SuggestionEngine {
   async generateSuggestion({ trip, itinerary, activities, chatHistory, completionProgress }) {
-    // Phase 6 FastAPI call will go here
     return {
       replyText: "FastAPISuggestionEngine is not active.",
       suggestionId: null,
