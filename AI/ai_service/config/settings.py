@@ -8,5 +8,6 @@ class Settings(BaseSettings):
     api_key: str = Field("WW_SECRET_TOKEN_2026", validation_alias="API_KEY")
     port: int = Field(8000, validation_alias="PORT")
     host: str = Field("0.0.0.0", validation_alias="HOST")
+    llm_provider: str = Field("mock", validation_alias="LLM_PROVIDER")
 
 settings = Settings()

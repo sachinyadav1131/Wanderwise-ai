@@ -22,6 +22,8 @@ class WorkflowState(BaseModel):
     chatHistory: list[dict] = Field(default_factory=list)
     activities: list[dict] = Field(default_factory=list)
     currentProgress: float = 0.0
+    trace_id: str = "SYSTEM"
+    context: dict[str, Any] = Field(default_factory=dict)
 
 class ChangeProposal(BaseModel):
     generatedSummary: str
