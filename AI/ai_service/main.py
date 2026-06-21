@@ -92,21 +92,29 @@ replan_work = ReplanWorkflow()
 @app.post("/api/v1/ai/trip-overview", response_model=APIResponse[dict])
 async def generate_trip_overview(request: TripRequest):
     logger.info("Executing Trip Overview workflow")
-    res = await trip_overview.run(request)
+    state = trip_overview.initialize_state(
+        trip_id="overview-trip",
+        trip_details=request
+    )
+    final_state = await trip_overview.execute(state)
     return APIResponse(
         success=True,
         message="Trip overview generated successfully.",
-        data=res
+        data=final_state.context.get("output", {})
     )
 
 @app.post("/api/v1/ai/detailed-itinerary", response_model=APIResponse[dict])
 async def generate_detailed_itinerary(request: TripRequest):
     logger.info("Executing Detailed Itinerary workflow")
-    res = await detailed_itinerary.run(request)
+    state = detailed_itinerary.initialize_state(
+        trip_id="detailed-trip",
+        trip_details=request
+    )
+    final_state = await detailed_itinerary.execute(state)
     return APIResponse(
         success=True,
         message="Detailed itinerary generated successfully.",
-        data=res
+        data=final_state.context.get("output", {})
     )
 
 class ChatPayload(BaseModel):
@@ -119,23 +127,28 @@ class ChatPayload(BaseModel):
 @app.post("/api/v1/ai/chat", response_model=APIResponse[dict])
 async def chat_message(payload: ChatPayload):
     logger.info(f"Executing Chat workflow for trip: {payload.tripId}")
-    state = WorkflowState(
-        tripId=payload.tripId,
-        tripDetails=TripRequest(
-            destination="Delhi",
-            startDate="2026-06-21",
-            endDate="2026-06-22",
-            totalBudget=4000.0
-        ),
+    trip_details = TripRequest(
+        destination="Delhi",
+        startDate="2026-06-21",
+        endDate="2026-06-22",
+        totalBudget=4000.0
+    )
+    context = {
+        "message": payload.message
+    }
+    state = chat_work.initialize_state(
+        trip_id=payload.tripId,
+        trip_details=trip_details,
         chatHistory=payload.chatHistory,
         activities=payload.activities,
-        currentProgress=payload.currentProgress
+        currentProgress=payload.currentProgress,
+        context=context
     )
-    res = await chat_work.run(state, payload.message)
+    final_state = await chat_work.execute(state)
     return APIResponse(
         success=True,
         message="Chat response processed.",
-        data=res
+        data=final_state.context.get("output", {})
     )
 
 class ReplanPayload(BaseModel):
@@ -148,15 +161,27 @@ class ReplanPayload(BaseModel):
 @app.post("/api/v1/ai/replan", response_model=APIResponse[dict])
 async def replan_trip(payload: ReplanPayload):
     logger.info(f"Executing Replan workflow triggered by: {payload.triggerType}")
-    res = await replan_work.run(
-        trip_id=payload.tripId,
-        trigger_type=payload.triggerType,
-        reason=payload.reason,
-        activities=payload.activities,
-        weather_alert_details=payload.weatherAlertDetails
+    trip_details = TripRequest(
+        destination="Delhi",
+        startDate="2026-06-21",
+        endDate="2026-06-22",
+        totalBudget=4000.0
     )
+    context = {
+        "triggerType": payload.triggerType,
+        "reason": payload.reason,
+        "weatherAlertDetails": payload.weatherAlertDetails
+    }
+    state = replan_work.initialize_state(
+        trip_id=payload.tripId,
+        trip_details=trip_details,
+        activities=payload.activities,
+        context=context
+    )
+    final_state = await replan_work.execute(state)
     return APIResponse(
         success=True,
         message="Replan suggestion proposal generated.",
-        data=res
+        data=final_state.context.get("output", {})
     )
+
