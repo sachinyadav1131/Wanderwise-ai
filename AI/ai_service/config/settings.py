@@ -9,5 +9,7 @@ class Settings(BaseSettings):
     port: int = Field(8000, validation_alias="PORT")
     host: str = Field("0.0.0.0", validation_alias="HOST")
     llm_provider: str = Field("mock", validation_alias="LLM_PROVIDER")
+    mcp_enabled: bool = Field(True, validation_alias="MCP_ENABLED")
 
 settings = Settings()
+
