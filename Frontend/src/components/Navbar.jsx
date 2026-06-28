@@ -32,7 +32,7 @@ export default function Navbar() {
         </Link>
 
         {/* Nav links */}
-        <ul className="hidden md:flex items-center gap-1">
+        <ul className="hidden md:flex items-center gap-8">
           {NAV_LINKS.map(({ label, to }) => {
             const active = location.pathname === to;
             return (
@@ -40,7 +40,7 @@ export default function Navbar() {
                 <Link
                   to={to}
                   id={`nav-${label.toLowerCase().replace(/\s/g, "-")}`}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-4.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                     active
                       ? "bg-indigo-50 text-indigo-600"
                       : "text-gray-600 hover:text-indigo-600 hover:bg-gray-50"
@@ -54,7 +54,7 @@ export default function Navbar() {
         </ul>
 
         {/* Auth / CTA */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-5">
           {user ? (
             <div className="flex items-center gap-2.5">
               <img
@@ -67,13 +67,22 @@ export default function Navbar() {
               </span>
             </div>
           ) : (
-            <Link
-              to="/create-trip"
-              id="nav-cta"
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white gradient-brand shadow-md hover:opacity-90 hover:scale-105 transition-all"
-            >
-              Get Started
-            </Link>
+            <>
+              <Link
+                to="/login"
+                id="nav-login-link"
+                className="text-sm font-bold text-gray-600 hover:text-indigo-600 transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                id="nav-cta"
+                className="px-4.5 py-2.5 rounded-xl text-sm font-bold text-white gradient-brand shadow-md hover:opacity-90 hover:scale-105 transition-all"
+              >
+                Sign Up
+              </Link>
+            </>
           )}
         </div>
       </nav>

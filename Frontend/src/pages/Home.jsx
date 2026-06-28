@@ -51,7 +51,7 @@ const PREVIEW_TRIPS = [
 
 export default function Home() {
   return (
-    <div className="flex-1 overflow-x-hidden">
+    <div className="w-full min-h-screen bg-white relative block">
       {/* ── Hero Section ─────────────────────────────────────────────────────── */}
       <section
         id="hero"
@@ -182,16 +182,16 @@ export default function Home() {
       </section>
 
       {/* ── Features Section ─────────────────────────────────────────────────── */}
-      <section id="features" className="py-24 px-4 max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-sm font-bold uppercase tracking-widest text-indigo-500 mb-3">Why WanderWise</p>
+      <section id="features" className="w-full relative py-24 px-4 max-w-7xl mx-auto block">
+        <div className="flex flex-col items-center text-center mb-16">
+          <p className="text-sm font-bold uppercase tracking-widest text-indigo-500 mb-3 text-center mx-auto">Why WanderWise</p>
           <h2
-            className="text-4xl sm:text-5xl font-extrabold text-gray-900"
+            className="text-4xl sm:text-5xl font-extrabold text-gray-900 text-center mx-auto"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Travel smarter, not harder
           </h2>
-          <p className="mt-4 text-gray-500 max-w-xl mx-auto">
+          <p className="mt-4 text-gray-500 max-w-xl mx-auto text-center">
             Everything you need to plan, execute, and remember an extraordinary trip — all in one place.
           </p>
         </div>
@@ -215,33 +215,41 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Spacer between Features and CTA Banner */}
+      <div className="h-16 sm:h-24 block relative" style={{ clear: "both" }}></div>
+
       {/* ── CTA Banner ───────────────────────────────────────────────────────── */}
-      <section id="cta-banner" className="py-20 px-4">
-        <div className="max-w-3xl mx-auto text-center bg-white border border-indigo-100 rounded-3xl shadow-xl p-12" style={{ background: "linear-gradient(135deg, #f0f4ff, #faf5ff)" }}>
+      <section id="cta-banner" className="w-full relative py-20 px-4 flex justify-center items-center">
+        <div className="w-full max-w-3xl text-center bg-white border border-indigo-100 rounded-3xl shadow-xl p-8 sm:p-12 flex flex-col items-center justify-center" style={{ background: "linear-gradient(135deg, #f0f4ff, #faf5ff)" }}>
           <h2
             className="text-4xl font-extrabold text-gray-900 mb-4"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Ready to explore the world?
           </h2>
-          <p className="text-gray-500 mb-8">
+          <p className="text-gray-500 mb-8 max-w-xl">
             Join thousands of travellers who've planned their dream trips with WanderWise AI.
           </p>
-          <Link
-            id="bottom-cta"
-            to="/create-trip"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-white font-bold text-lg gradient-brand shadow-lg hover:opacity-90 hover:scale-105 transition-all"
-          >
-            Start Planning Now
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
+          <div className="flex justify-center w-full mt-2">
+            <Link
+              id="bottom-cta"
+              to="/create-trip"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-white font-bold text-lg gradient-brand shadow-lg hover:opacity-90 hover:scale-105 transition-all mx-auto"
+            >
+              Start Planning Now
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </section>
 
+      {/* Spacer between CTA Banner and Footer */}
+      <div className="h-12 sm:h-20 block relative" style={{ clear: "both" }}></div>
+
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <footer className="py-8 px-4 border-t border-gray-100 text-center text-sm text-gray-400">
+      <footer className="w-full relative py-8 px-4 border-t border-gray-100 text-center text-sm text-gray-400 block">
         © {new Date().getFullYear()} WanderWise AI. Built with ❤️ and multi-agent intelligence.
       </footer>
     </div>

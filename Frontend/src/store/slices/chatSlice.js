@@ -1,8 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-// Configure base URL if necessary
-axios.defaults.baseURL = "http://localhost:5000";
+// Configure credentials
 axios.defaults.withCredentials = true;
 
 export const fetchChatHistory = createAsyncThunk(

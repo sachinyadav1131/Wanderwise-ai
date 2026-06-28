@@ -15,7 +15,6 @@ export default function ActivityChecklist({ activityId, label, timing, descripti
   const isComplete = useSelector(
     (state) => !!state.activity.completedActivities[activityId]
   );
-
   return (
     <button
       id={`checklist-${activityId}`}

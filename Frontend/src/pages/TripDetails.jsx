@@ -107,14 +107,14 @@ function ActivitySlotCard({ dayNum, slot, data }) {
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <h4 className="font-bold text-gray-900 text-sm mb-1" style={{ fontFamily: "var(--font-display)" }}>
+      <div className="p-5.5">
+        <h4 className="font-bold text-gray-900 text-sm mb-6" style={{ fontFamily: "var(--font-display)" }}>
           {data.activity}
         </h4>
-        <p className="text-xs text-gray-500 leading-relaxed mb-3">{data.description}</p>
+        <p className="text-xs text-gray-500 leading-relaxed mb-6">{data.description}</p>
 
         {/* Timing chip */}
-        <div className="flex items-center gap-1.5 mb-3">
+        <div className="flex items-center gap-1.5 mb-6">
           <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -125,7 +125,6 @@ function ActivitySlotCard({ dayNum, slot, data }) {
         <ActivityChecklist
           activityId={activityId}
           label="Mark as visited"
-          timing={data.timing}
         />
       </div>
     </div>
@@ -137,11 +136,10 @@ function DayBlock({ day }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div id={`day-block-${day.day}`} className="mb-8">
-      {/* Day header */}
+    <div id={`day-block-${day.day}`} className="mb-24 pb-12 border-b border-gray-100/70 last:border-b-0 last:mb-0 last:pb-0">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center justify-between w-full mb-4 group"
+        className="flex items-center justify-between w-full mb-7 group"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gradient-brand flex items-center justify-center text-white font-extrabold text-sm shadow-md">
@@ -164,7 +162,7 @@ function DayBlock({ day }) {
 
       {/* Slot grid */}
       {expanded && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-fade-in">
           {["Morning", "Afternoon", "Evening"].map(
             (slot) =>
               day.slots[slot] && (
@@ -198,6 +196,25 @@ export default function TripDetails() {
   const heroImage =
     trip?.coverImage ||
     "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1200&auto=format&fit=crop";
+
+  const handleScrollToSection = (tag) => {
+    let targetId = "";
+    if (tag.includes("Hotels")) targetId = "hotel-recommendations";
+    if (tag.includes("Activities")) targetId = "places-to-visit";
+    if (tag.includes("Full Itinerary")) targetId = "trip-hero";
+    if (tag.includes("AI Companion")) {
+      const chatBtn = document.getElementById("chatbot-toggle-btn");
+      if (chatBtn) chatBtn.click();
+      return;
+    }
+
+    if (targetId) {
+      const element = document.getElementById(targetId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
 
   return (
     <div className="flex-1 pb-20">
@@ -242,14 +259,15 @@ export default function TripDetails() {
 
       {/* ── Feature Tag Strip ───────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 px-4 sm:px-10 py-3 overflow-x-auto">
-        <div className="flex items-center gap-2 min-w-max" id="feature-tags">
+        <div className="flex items-center gap-4 min-w-max" id="feature-tags">
           {FEATURE_TAGS.map((tag) => (
-            <span
+            <button
               key={tag}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap"
+              onClick={() => handleScrollToSection(tag)}
+              className="text-xs font-semibold px-4.5 py-2.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-150 whitespace-nowrap transition-all duration-200 cursor-pointer hover:scale-[1.03] active:scale-[0.97]"
             >
               {tag}
-            </span>
+            </button>
           ))}
         </div>
       </div>
@@ -293,6 +311,9 @@ export default function TripDetails() {
               </div>
             </section>
 
+            {/* Section Spacer */}
+            <div className="h-16 sm:h-24 border-t border-gray-100/60 my-6"></div>
+
             {/* ── Places to Visit ───────────────────────────────────────────── */}
             <section id="places-to-visit" className="mb-14">
               <div className="flex items-center gap-3 mb-6">
@@ -313,7 +334,7 @@ export default function TripDetails() {
               </div>
 
               {/* Day blocks */}
-              <div id="day-blocks">
+              <div id="day-blocks" className="mt-8">
                 {(destinationData.days || []).map((day) => (
                   <DayBlock key={day.day} day={day} />
                 ))}
