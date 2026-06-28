@@ -10,26 +10,43 @@ import { toggleActivity } from "../store/slices/activitySlice";
  *   timing      – optional time string
  *   description – optional short description
  */
-export default function ActivityChecklist({ activityId, label, timing, description }) {
+export default function ActivityChecklist({ activityId, label, timing, description, disabled }) {
   const dispatch = useDispatch();
   const isComplete = useSelector(
     (state) => !!state.activity.completedActivities[activityId]
   );
+
+  const containerClasses = `w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${
+    isComplete
+      ? "bg-emerald-50 border-emerald-200"
+      : "bg-white border-gray-200"
+  } ${
+    disabled 
+      ? "" 
+      : "group hover:border-indigo-300 hover:bg-indigo-50/40 cursor-pointer"
+  }`;
+
+  const handleClick = () => {
+    if (!disabled) {
+      dispatch(toggleActivity(activityId));
+    }
+  };
+
+  const Component = disabled ? "div" : "button";
+
   return (
-    <button
+    <Component
       id={`checklist-${activityId}`}
-      onClick={() => dispatch(toggleActivity(activityId))}
-      className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-200 group ${
-        isComplete
-          ? "bg-emerald-50 border-emerald-200"
-          : "bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40"
-      }`}
+      onClick={handleClick}
+      className={containerClasses}
     >
       {/* Checkbox circle */}
       <div
         className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
           isComplete
             ? "bg-emerald-500 border-emerald-500"
+            : disabled 
+            ? "border-gray-200" 
             : "border-gray-300 group-hover:border-indigo-400"
         }`}
       >
@@ -58,6 +75,6 @@ export default function ActivityChecklist({ activityId, label, timing, descripti
           </p>
         )}
       </div>
-    </button>
+    </Component>
   );
 }

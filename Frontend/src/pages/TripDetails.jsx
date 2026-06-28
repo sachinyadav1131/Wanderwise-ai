@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchTripById } from "../store/slices/tripSlice";
+import { fetchTripById, updateTripStatus, deleteTrip } from "../store/slices/tripSlice";
 import { fetchItinerary } from "../store/slices/itinerarySlice";
 import TripChatbot from "../components/TripChatbot";
 import ActivityChecklist from "../components/ActivityChecklist";
@@ -78,7 +78,7 @@ const SLOT_META = {
 };
 
 // ─── Activity Slot Card ───────────────────────────────────────────────────────
-function ActivitySlotCard({ dayNum, slot, data }) {
+function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
   const meta = SLOT_META[slot] || { icon: "📍", color: "bg-gray-50 border-gray-200 text-gray-700" };
   const activityId = `day${dayNum}-${slot.toLowerCase()}`;
 
@@ -125,6 +125,7 @@ function ActivitySlotCard({ dayNum, slot, data }) {
         <ActivityChecklist
           activityId={activityId}
           label="Mark as visited"
+          disabled={tripStatus !== "Started"}
         />
       </div>
     </div>
@@ -132,7 +133,7 @@ function ActivitySlotCard({ dayNum, slot, data }) {
 }
 
 // ─── Day Block ────────────────────────────────────────────────────────────────
-function DayBlock({ day }) {
+function DayBlock({ day, tripStatus }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -166,7 +167,7 @@ function DayBlock({ day }) {
           {["Morning", "Afternoon", "Evening"].map(
             (slot) =>
               day.slots[slot] && (
-                <ActivitySlotCard key={slot} dayNum={day.day} slot={slot} data={day.slots[slot]} />
+                <ActivitySlotCard key={slot} dayNum={day.day} slot={slot} data={day.slots[slot]} tripStatus={tripStatus} />
               )
           )}
         </div>
@@ -182,8 +183,10 @@ const FEATURE_TAGS = ["🗺️ Full Itinerary", "🏨 Hotels", "🌅 Activities"
 export default function TripDetails() {
   const { tripId } = useParams();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const trip = useSelector((state) => state.trips.activeTrip);
+  const trips = useSelector((state) => state.trips.trips);
   const { itinerary, loading } = useSelector((state) => state.itinerary);
 
   useEffect(() => {
@@ -191,6 +194,26 @@ export default function TripDetails() {
     dispatch(fetchItinerary(tripId));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [tripId, dispatch]);
+
+  const handleUpdateStatus = (newStatus) => {
+    if (newStatus === "Started") {
+      const hasActive = trips.some((t) => t.status === "Started" && t._id !== tripId);
+      if (hasActive) {
+        alert("You already have an active live trip. Please complete it first before starting another one!");
+        return;
+      }
+    }
+    dispatch(updateTripStatus({ tripId, status: newStatus }));
+  };
+
+  const handleDeleteTrip = async () => {
+    if (window.confirm("Are you sure you want to delete this trip and all its itinerary data?")) {
+      const result = await dispatch(deleteTrip(tripId));
+      if (deleteTrip.fulfilled.match(result)) {
+        navigate("/dashboard");
+      }
+    }
+  };
 
   const destinationData = itinerary || {};
   const heroImage =
@@ -244,16 +267,51 @@ export default function TripDetails() {
         </Link>
 
         {/* Destination info */}
-        <div className="absolute bottom-6 left-0 right-0 px-6 sm:px-10">
-          <h1
-            className="text-white text-3xl sm:text-4xl font-extrabold drop-shadow-lg mb-1"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {trip?.destination || destinationData.destination || "Your Destination"}
-          </h1>
-          <p className="text-white/80 text-sm font-medium">
-            {trip?.duration || destinationData.duration} days · {trip?.budget} · {trip?.companions}
-          </p>
+        <div className="absolute bottom-6 left-0 right-0 px-6 sm:px-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1
+              className="text-white text-3xl sm:text-4xl font-extrabold drop-shadow-lg mb-1"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {trip?.destination || destinationData.destination || "Your Destination"}
+            </h1>
+            <p className="text-white/80 text-sm font-medium">
+              {trip?.duration || destinationData.duration} days · {trip?.budget} · {trip?.companions}
+            </p>
+          </div>
+
+          {/* Action buttons based on status */}
+          {trip?.status === "Planned" && (
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              <button
+                onClick={() => handleUpdateStatus("Started")}
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                🚀 Start Trip
+              </button>
+              <button
+                onClick={handleDeleteTrip}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                🗑️ Delete Trip
+              </button>
+            </div>
+          )}
+
+          {trip?.status === "Started" && (
+            <button
+              onClick={() => handleUpdateStatus("Completed")}
+              className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+            >
+              🏁 Complete Trip
+            </button>
+          )}
+
+          {trip?.status === "Completed" && (
+            <span className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl font-bold text-xs self-start sm:self-auto uppercase tracking-wide">
+              Completed Trip ✅
+            </span>
+          )}
         </div>
       </div>
 
@@ -278,41 +336,131 @@ export default function TripDetails() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <svg className="animate-spin w-10 h-10 text-indigo-500" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
             </svg>
             <p className="text-gray-400 text-sm font-medium">Building your itinerary…</p>
           </div>
-        ) : (
-          <>
-            {/* ── Hotel Recommendations ─────────────────────────────────────── */}
-            <section id="hotel-recommendations" className="mb-14">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <div>
-                  <h2
-                    className="text-2xl font-extrabold text-gray-900"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Hotel Recommendations
-                  </h2>
-                  <p className="text-gray-500 text-xs mt-0.5">Curated stays matching your budget tier</p>
-                </div>
-              </div>
+        ) : trip?.status === "Planned" ? (
+          /* Minimal plain-text schedule view for Upcoming Trips */
+          <div 
+            className="bg-white rounded-3xl border border-gray-150 shadow-sm max-w-4xl mx-auto mb-10"
+            style={{ padding: "2.5rem" }}
+          >
+            <div className="mb-8 pb-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Upcoming Trip Overview</h2>
+              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">High-Level Schedule Overview</p>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="hotel-grid">
-                {(destinationData.hotels || []).map((hotel) => (
-                  <HotelCard key={hotel._id} hotel={hotel} />
-                ))}
+            {/* Stays info */}
+            {destinationData.hotels && destinationData.hotels.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  🏨 Stays Recommended:
+                </h3>
+                <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1.5">
+                  {destinationData.hotels.map((hotel) => (
+                    <li key={hotel._id || hotel.name}>
+                      <span className="font-semibold text-gray-850">{hotel.name}</span> - {hotel.location} (${hotel.pricePerNight}/night)
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </section>
+            )}
+
+            {/* Days list in plain text */}
+            <div className="space-y-8">
+              <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                🗺️ Daily Timeline:
+              </h3>
+              {destinationData.days?.map((d) => (
+                <div key={d.day} className="relative pl-6 border-l-2 border-indigo-100 last:border-l-0 pb-6 last:pb-0">
+                  {/* Dot indicator */}
+                  <div className="absolute left-[-6px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                  <h4 className="text-base font-bold text-gray-800 mb-2">
+                    {d.title?.toLowerCase().startsWith("day") ? d.title : `Day ${d.day}: ${d.title}`}
+                  </h4>
+                  <ul className="space-y-2 text-sm text-gray-600 pl-2">
+                    {Object.entries(d.slots).map(([slotName, slotData]) => (
+                      <li key={slotName} className="flex flex-col sm:flex-row sm:items-baseline gap-1">
+                        <span className="font-bold text-xs uppercase tracking-wider text-indigo-500 min-w-[90px]">
+                          {slotName} ({slotData.timing}):
+                        </span>
+                        <span>
+                          {slotData.activity} - <span className="text-gray-400 text-xs">{slotData.description}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* Full detailed/interactive view for Live and Completed Trips */
+          <>
+            {trip?.status === "Completed" && (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 mb-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl font-bold">
+                    🎉
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-emerald-900">Congratulations! You completed this trip.</h2>
+                    <p className="text-xs text-emerald-600 mt-0.5">Here is your travel summary and itinerary log</p>
+                  </div>
+                </div>
+                <div className="flex gap-6 items-center flex-wrap">
+                  <div className="text-center">
+                    <p className="text-xs text-emerald-600/80 font-medium">Spots Explored</p>
+                    <p className="text-lg font-extrabold text-emerald-900">100%</p>
+                  </div>
+                  <div className="h-8 w-px bg-emerald-200" />
+                  <div className="text-center">
+                    <p className="text-xs text-emerald-600/80 font-medium">Stay Type</p>
+                    <p className="text-lg font-extrabold text-emerald-900">{trip?.budget}</p>
+                  </div>
+                  <div className="h-8 w-px bg-emerald-200" />
+                  <div className="text-center">
+                    <p className="text-xs text-emerald-600/80 font-medium">Travelers</p>
+                    <p className="text-lg font-extrabold text-emerald-900">{trip?.travelers} Pax</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Hotel Recommendations ─────────────────────────────────────── */}
+            {destinationData.hotels && destinationData.hotels.length > 0 && (
+              <section id="hotel-recommendations" className="mb-14">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2
+                      className="text-2xl font-extrabold text-gray-900"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      Hotel Recommendations
+                    </h2>
+                    <p className="text-gray-500 text-xs mt-0.5">Curated stays matching your budget tier</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="hotel-grid">
+                  {destinationData.hotels.map((hotel) => (
+                    <HotelCard key={hotel._id} hotel={hotel} />
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Section Spacer */}
-            <div className="h-16 sm:h-24 border-t border-gray-100/60 my-6"></div>
+            {destinationData.hotels && destinationData.hotels.length > 0 && (
+              <div className="h-16 sm:h-24 border-t border-gray-100/60 my-6"></div>
+            )}
 
             {/* ── Places to Visit ───────────────────────────────────────────── */}
             <section id="places-to-visit" className="mb-14">
@@ -336,7 +484,7 @@ export default function TripDetails() {
               {/* Day blocks */}
               <div id="day-blocks" className="mt-8">
                 {(destinationData.days || []).map((day) => (
-                  <DayBlock key={day.day} day={day} />
+                  <DayBlock key={day.day} day={day} tripStatus={trip?.status} />
                 ))}
               </div>
             </section>

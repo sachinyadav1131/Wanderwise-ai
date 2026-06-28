@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
-import { fetchTrips } from "../store/slices/tripSlice";
+import { Link, useLocation } from "react-router-dom";
+import { fetchTrips, deleteTrip } from "../store/slices/tripSlice";
 
 // ─── Budget badge colours ─────────────────────────────────────────────────────
 const BUDGET_STYLES = {
@@ -36,8 +36,17 @@ function SkeletonCard() {
 
 // ─── Trip Card ────────────────────────────────────────────────────────────────
 function TripCard({ trip }) {
+  const dispatch = useDispatch();
   const budgetStyle = BUDGET_STYLES[trip.budget] || "bg-gray-50 text-gray-600 border-gray-200";
   const companionIcon = COMPANION_ICONS[trip.companions] || "🧳";
+
+  const handleDelete = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this trip and all its itinerary data?")) {
+      dispatch(deleteTrip(trip._id));
+    }
+  };
 
   return (
     <div
@@ -90,13 +99,25 @@ function TripCard({ trip }) {
           </span>
         </div>
 
-        <Link
-          to={`/trip/${trip._id}`}
-          id={`view-trip-${trip._id}`}
-          className="block w-full text-center py-2.5 rounded-xl text-sm font-bold text-indigo-600 border-2 border-indigo-100 bg-indigo-50 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-200"
-        >
-          View Itinerary →
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to={`/trip/${trip._id}`}
+            id={`view-trip-${trip._id}`}
+            className="flex-1 text-center py-2.5 rounded-xl text-xs font-bold text-indigo-600 border-2 border-indigo-100 bg-indigo-50 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-200"
+          >
+            View Itinerary →
+          </Link>
+          {(trip.status === "Planned" || trip.status === "Draft") && (
+            <button
+              onClick={handleDelete}
+              id={`delete-trip-${trip._id}`}
+              className="px-3 rounded-xl border border-red-250 text-red-500 bg-red-50 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all duration-200 flex items-center justify-center cursor-pointer"
+              title="Delete Trip"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -106,11 +127,28 @@ function TripCard({ trip }) {
 
 export default function Dashboard() {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { trips, loading } = useSelector((state) => state.trips);
 
   useEffect(() => {
     dispatch(fetchTrips());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (location.hash === "#completed") {
+      setTimeout(() => {
+        const element = document.getElementById("completed-trips-section");
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 300);
+    }
+  }, [location, trips]);
+
+  // Filter trips by status
+  const liveTrip = trips.find((t) => t.status === "Started");
+  const upcomingTrips = trips.filter((t) => t.status === "Planned" || t.status === "Draft");
+  const completedTrips = trips.filter((t) => t.status === "Completed");
 
   return (
     <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
@@ -124,7 +162,7 @@ export default function Dashboard() {
             My Trips
           </h1>
           <p className="text-gray-500 mt-1 text-sm">
-            {loading ? "Loading…" : `${trips.length} trip${trips.length !== 1 ? "s" : ""} planned`}
+            {loading ? "Loading…" : `${trips.length} trip${trips.length !== 1 ? "s" : ""} active or planned`}
           </p>
         </div>
 
@@ -146,13 +184,84 @@ export default function Dashboard() {
           {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : trips.length > 0 ? (
-        <div
-          id="trip-grid"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-        >
-          {trips.map((trip) => (
-            <TripCard key={trip._id} trip={trip} />
-          ))}
+        <div className="space-y-12">
+          {/* 1. Live Active Session */}
+          {liveTrip && (
+            <div id="live-trip-section" className="mb-10">
+              <h2 className="text-lg font-extrabold text-gray-900 mb-4 flex items-center gap-2" style={{ fontFamily: "var(--font-display)" }}>
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                Active Live Trip
+              </h2>
+              <div className="bg-indigo-900 text-white rounded-2xl overflow-hidden shadow-md flex flex-col md:flex-row relative">
+                {/* Side Image */}
+                <div className="w-full md:w-1/3 h-48 md:h-auto relative overflow-hidden">
+                  <img
+                    src={liveTrip.coverImage}
+                    alt={liveTrip.destination}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&auto=format&fit=crop";
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r md:bg-gradient-to-l from-indigo-900/40 via-transparent to-transparent" />
+                </div>
+                {/* Details */}
+                <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md">
+                      Currently On-Going 🚀
+                    </span>
+                    <h3 className="text-2xl sm:text-3xl font-extrabold mt-3" style={{ fontFamily: "var(--font-display)" }}>
+                      {liveTrip.destination}
+                    </h3>
+                    <p className="text-indigo-200 text-xs sm:text-sm mt-1 font-semibold">
+                      {liveTrip.companions} · {liveTrip.duration} days adventure
+                    </p>
+                  </div>
+                  <div className="mt-6 flex flex-wrap gap-4 items-center">
+                    <Link
+                      to={`/trip/${liveTrip._id}`}
+                      id={`view-live-${liveTrip._id}`}
+                      className="px-5 py-2.5 rounded-xl bg-white text-indigo-900 font-bold text-xs hover:bg-indigo-50 hover:scale-105 transition-all shadow-md"
+                    >
+                      Open Live Itinerary →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. Upcoming Adventures */}
+          {upcomingTrips.length > 0 && (
+            <div id="upcoming-trips-section">
+              <h2 className="text-lg font-extrabold text-gray-900 mb-4" style={{ fontFamily: "var(--font-display)" }}>
+                Upcoming Adventures ({upcomingTrips.length})
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {upcomingTrips.map((trip) => (
+                  <TripCard key={trip._id} trip={trip} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Completed Journeys */}
+          {completedTrips.length > 0 && (
+            <div id="completed-trips-section" className="opacity-75">
+              <h2 className="text-lg font-extrabold text-gray-400 mb-4" style={{ fontFamily: "var(--font-display)" }}>
+                Past Journeys ({completedTrips.length})
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {completedTrips.map((trip) => (
+                  <TripCard key={trip._id} trip={trip} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Empty state */
