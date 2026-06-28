@@ -7,3 +7,7 @@ python-dotenv>=1.0.1
 pytest>=8.1.0
 httpx>=0.27.0
 pytest-asyncio>=0.23.0
+
+# ── LLM ─────────────────────────────────────────────────────────────────────
+# Official Google GenAI SDK (Gemini).  Provides google.genai with async support.
+google-genai>=1.0.0
