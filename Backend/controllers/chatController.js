@@ -26,7 +26,7 @@ export const sendMessage = asyncHandler(async (req, res, next) => {
     message,
   });
 
-  // 2. Call our context-aware simulation AI Service
+  // 2. Call the AI Service (forwards to FastAPI reasoning pipeline)
   const aiResult = await aiService.processChatMessage(trip, message);
 
   // 3. Create and save the AI reply, linking to the ChangeSuggestion if one was generated

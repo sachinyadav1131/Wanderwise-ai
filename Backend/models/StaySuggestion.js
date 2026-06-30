@@ -7,8 +7,7 @@ const hotelOptionSchema = new mongoose.Schema({
     trim: true,
   },
   type: {
-    type: String,
-    enum: ["Hotel", "Hostel", "Guest House", "Homestay"],
+    type: String, // e.g., "Hotel", "Hostel", "Resort", "4-Star Hotel", "Guest House", "Homestay"
     required: [true, "Accommodation type is required."],
   },
   pricePerNight: {
@@ -71,8 +70,7 @@ const staySuggestionSchema = new mongoose.Schema(
       name: String,
       pricePerNight: Number,
       type: {
-        type: String,
-        enum: ["Hotel", "Hostel", "Guest House", "Homestay"],
+        type: String, // Free-form to accept any AI-generated accommodation type
       },
       bookingUrl: String,
     },

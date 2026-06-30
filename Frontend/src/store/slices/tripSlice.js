@@ -1,51 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-const MOCK_TRIPS = [
-  {
-    _id: "trip-001",
-    destination: "Kyoto, Japan",
-    duration: 7,
-    budget: "Luxury",
-    companions: "A Couple",
-    coverImage:
-      "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop",
-    createdAt: "2026-06-01",
-  },
-  {
-    _id: "trip-002",
-    destination: "Santorini, Greece",
-    duration: 5,
-    budget: "Moderate",
-    companions: "Friends",
-    coverImage:
-      "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&auto=format&fit=crop",
-    createdAt: "2026-06-10",
-  },
-  {
-    _id: "trip-003",
-    destination: "Bali, Indonesia",
-    duration: 10,
-    budget: "Cheap",
-    companions: "Just Me",
-    coverImage:
-      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&auto=format&fit=crop",
-    createdAt: "2026-06-18",
-  },
-  {
-    _id: "trip-004",
-    destination: "New York City, USA",
-    duration: 4,
-    budget: "Luxury",
-    companions: "Family",
-    coverImage:
-      "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&auto=format&fit=crop",
-    createdAt: "2026-06-22",
-  },
-];
-
 // ─── Async Thunks ────────────────────────────────────────────────────────────
 const formatTripData = (trip) => {
   if (!trip) return null;

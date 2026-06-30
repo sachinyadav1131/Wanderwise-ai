@@ -252,15 +252,17 @@ class ChatPayload(BaseModel):
     chatHistory: list[dict] = Field(default_factory=list)
     activities: list[dict] = Field(default_factory=list)
     currentProgress: float = 0.0
+    tripDetails: Optional[TripRequest] = None
 
 @app.post("/api/v1/ai/chat", response_model=APIResponse[dict])
 async def chat_message(payload: ChatPayload):
     logger.info(f"Executing Chat workflow for trip: {payload.tripId}")
-    trip_details = TripRequest(
-        destination="Delhi",
-        startDate="2026-06-21",
-        endDate="2026-06-22",
-        totalBudget=4000.0
+    # Use real trip details from Express backend if provided, otherwise fallback
+    trip_details = payload.tripDetails or TripRequest(
+        destination="Unknown",
+        startDate="2026-01-01",
+        endDate="2026-01-02",
+        totalBudget=5000.0
     )
     context = {
         "message": payload.message
@@ -286,15 +288,17 @@ class ReplanPayload(BaseModel):
     reason: str
     activities: list[dict] = Field(default_factory=list)
     weatherAlertDetails: Optional[dict] = None
+    tripDetails: Optional[TripRequest] = None
 
 @app.post("/api/v1/ai/replan", response_model=APIResponse[dict])
 async def replan_trip(payload: ReplanPayload):
     logger.info(f"Executing Replan workflow triggered by: {payload.triggerType}")
-    trip_details = TripRequest(
-        destination="Delhi",
-        startDate="2026-06-21",
-        endDate="2026-06-22",
-        totalBudget=4000.0
+    # Use real trip details from Express backend if provided, otherwise fallback
+    trip_details = payload.tripDetails or TripRequest(
+        destination="Unknown",
+        startDate="2026-01-01",
+        endDate="2026-01-02",
+        totalBudget=5000.0
     )
     context = {
         "triggerType": payload.triggerType,

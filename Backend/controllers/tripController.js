@@ -3,9 +3,19 @@ import { Itinerary } from "../models/Itinerary.js";
 import { Activity } from "../models/Activity.js";
 import { StaySuggestion } from "../models/StaySuggestion.js";
 import { FoodSuggestion } from "../models/FoodSuggestion.js";
+import { aiService } from "../services/aiService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-// @desc    Create a new trip (Saves initial form as Draft)
+// Helper: compute dates array between start and end
+const getDaysArray = (start, end) => {
+  const arr = [];
+  for (let dt = new Date(start); dt <= new Date(end); dt.setDate(dt.getDate() + 1)) {
+    arr.push(new Date(dt));
+  }
+  return arr;
+};
+
+// @desc    Create a new trip (calls AI to generate itinerary, saves as Planned)
 // @route   POST /api/trips
 // @access  Private
 export const createTrip = asyncHandler(async (req, res) => {
@@ -58,6 +68,7 @@ export const createTrip = asyncHandler(async (req, res) => {
     throw new Error("Destination is required.");
   }
 
+  // 1. Save the base trip record
   const trip = await Trip.create({
     user: req.user._id,
     destination,
@@ -71,12 +82,120 @@ export const createTrip = asyncHandler(async (req, res) => {
     interests,
     placesToAvoid,
     specialNotes,
-    status: "Planned", // Set to Planned per the requested user workflow (Upcoming Trip)
+    status: "Draft",
   });
+
+  // 2. Call the AI service to generate a detailed itinerary
+  let aiWarning = null;
+  try {
+    const aiResult = await aiService.generateDetailedItinerary(trip);
+    const itineraryDays = aiResult?.itineraryDays || [];
+    const dayDates = getDaysArray(trip.startDate, trip.endDate);
+
+    for (let i = 0; i < itineraryDays.length; i++) {
+      const dayData = itineraryDays[i];
+      const dayNumber = dayData.dayNumber || i + 1;
+      const date = dayDates[i] || new Date(trip.startDate);
+
+      // Create the base Itinerary document
+      const itinerary = await Itinerary.create({
+        trip: trip._id,
+        dayNumber,
+        date,
+        summary: dayData.summary || `Day ${dayNumber}: Highlights of ${destination}`,
+        activities: [],
+        staySuggestion: null,
+        foodSuggestions: [],
+      });
+
+      // Create StaySuggestion if returned by AI
+      let stayId = null;
+      const stayData = dayData.staySuggestion;
+      if (stayData && stayData.locationArea) {
+        const stay = await StaySuggestion.create({
+          trip: trip._id,
+          dayNumber,
+          locationArea: stayData.locationArea,
+          rationale: stayData.rationale || "",
+          options: (stayData.options || []).map((opt) => ({
+            name: opt.name,
+            type: opt.type || "Hotel",
+            pricePerNight: opt.pricePerNight || opt.price_per_night || 0,
+            rating: opt.rating || 0,
+            distanceFromRoute: opt.distanceFromRoute || opt.distance_from_center_km ? `${opt.distance_from_center_km} km` : "",
+            foodNearby: opt.foodNearby || [],
+            features: opt.features || opt.amenities || [],
+            address: opt.address || opt.area || "",
+          })),
+          selectedOption: stayData.options?.[0]
+            ? {
+              name: stayData.options[0].name,
+              pricePerNight: stayData.options[0].pricePerNight || stayData.options[0].price_per_night || 0,
+              type: stayData.options[0].type || "Hotel",
+            }
+            : undefined,
+        });
+        stayId = stay._id;
+      }
+
+      // Create FoodSuggestions if returned by AI
+      const foodIds = [];
+      for (const foodData of dayData.foodSuggestions || []) {
+        const food = await FoodSuggestion.create({
+          trip: trip._id,
+          dayNumber,
+          mealType: foodData.mealType || "Lunch",
+          nearPlace: foodData.nearPlace || foodData.location || destination,
+          restaurantName: foodData.restaurantName || "Local Restaurant",
+          cuisineType: foodData.cuisineType || "",
+          costEstimate: foodData.costEstimate || "",
+          averagePrice: foodData.averagePrice || 0,
+          rating: foodData.rating || 0,
+          distanceFromRoute: foodData.distanceFromRoute || "",
+          rationale: foodData.rationale || "",
+        });
+        foodIds.push(food._id);
+      }
+
+      // Create Activities for this day
+      const activityIds = [];
+      for (const actData of dayData.activities || []) {
+        const activity = await Activity.create({
+          trip: trip._id,
+          itinerary: itinerary._id,
+          dayNumber,
+          title: actData.title,
+          description: actData.description || "",
+          timeSlot: actData.timeSlot || "Morning",
+          time: actData.time || "",
+          location: actData.location || destination,
+          cost: actData.cost || 0,
+          estimatedDuration: actData.estimatedDuration || 60,
+          transportDetails: actData.transportDetails || { mode: "None" },
+          isAlternative: actData.isAlternative || false,
+        });
+        activityIds.push(activity._id);
+      }
+
+      // Link everything back to the itinerary
+      itinerary.activities = activityIds;
+      itinerary.staySuggestion = stayId;
+      itinerary.foodSuggestions = foodIds;
+      await itinerary.save();
+    }
+
+    // Mark trip as Planned
+    trip.status = "Planned";
+    await trip.save();
+  } catch (aiError) {
+    // AI service is down or returned an error — save trip as Draft with a warning
+    console.error("AI itinerary generation failed:", aiError.message);
+    aiWarning = `Trip saved as Draft. AI itinerary generation failed: ${aiError.message}. You can regenerate the itinerary later.`;
+  }
 
   return res.status(201).json({
     success: true,
-    message: "Trip created successfully.",
+    message: aiWarning || "Trip created and itinerary generated successfully.",
     data: trip,
   });
 });
