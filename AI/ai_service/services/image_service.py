@@ -37,7 +37,26 @@ class ImageService:
         elif any(k in query_lower for k in ["cafe", "restaurant", "food", "dinner", "lunch", "breakfast", "sweet"]):
             fallback_url = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&q=80"
 
-        # 2. Try Wikimedia Commons search first (Authentic, Fast & Open API)
+        # 2. Try Pexels API Image Search (Aesthetic, High-Quality Cover Photos)
+        pexels_key = os.getenv("PEXELS_API_KEY", "WrSsfxXTP2bzx3nartEgbBMBfIfkkiI2vct2NYu1SiKm8ZMkTJGC7JUV")
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                logger.info(f"Searching Pexels Images for: '{clean_query}'")
+                search_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(clean_query)}&per_page=3"
+                headers = {"Authorization": pexels_key}
+                
+                response = await client.get(search_url, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    photos = data.get("photos", [])
+                    if photos:
+                        img_url = photos[0]["src"]["landscape"]
+                        logger.info(f"Found Pexels image for '{clean_query}': {img_url}")
+                        return img_url
+        except Exception as e:
+            logger.warning(f"Pexels API search failed: {e}")
+
+        # 3. Fallback to Wikimedia Commons search (Authentic, Fast & Open API)
         headers = {
             "User-Agent": "WanderwiseTravelApp/1.0 (contact@wanderwise.com)"
         }
@@ -57,25 +76,6 @@ class ImageService:
                             return img_url
         except Exception as e:
             logger.warning(f"Wikimedia Commons API query failed: {e}")
-
-        # 3. Fallback to Pexels API Image Search
-        pexels_key = os.getenv("PEXELS_API_KEY", "WrSsfxXTP2bzx3nartEgbBMBfIfkkiI2vct2NYu1SiKm8ZMkTJGC7JUV")
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                logger.info(f"Searching Pexels Images for: '{clean_query}'")
-                search_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(clean_query)}&per_page=3"
-                headers = {"Authorization": pexels_key}
-                
-                response = await client.get(search_url, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    photos = data.get("photos", [])
-                    if photos:
-                        img_url = photos[0]["src"]["landscape"]
-                        logger.info(f"Found Pexels image for '{clean_query}': {img_url}")
-                        return img_url
-        except Exception as e:
-            logger.warning(f"Pexels API search failed: {e}")
 
         # 4. Return curated, beautiful Unsplash fallback matching the category
         logger.info(f"All image search APIs failed. Returning curated category fallback: {fallback_url}")

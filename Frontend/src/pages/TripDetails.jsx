@@ -84,26 +84,26 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
   const activityId = `day${dayNum}-${slot.toLowerCase()}`;
 
   const [loadedImage, setLoadedImage] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
 
   const currentImage = loadedImage || data.image;
 
-  const handleSearchPhoto = async () => {
-    setIsSearching(true);
-    try {
-      const response = await axios.get(`/api/v1/itineraries/search-image?query=${encodeURIComponent(data.activity)}`);
-      if (response.data?.success && response.data?.imageUrl) {
-        setLoadedImage(response.data.imageUrl);
-      } else {
-        alert("No live photo found for this place.");
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLivePhoto = async () => {
+      try {
+        const response = await axios.get(`/api/v1/itineraries/search-image?query=${encodeURIComponent(data.activity)}`);
+        if (response.data?.success && response.data?.imageUrl && isMounted) {
+          setLoadedImage(response.data.imageUrl);
+        }
+      } catch (err) {
+        console.error("Auto-fetch live photo failed:", err);
       }
-    } catch (err) {
-      console.error("Error searching photo:", err);
-      alert("Failed to fetch live photo. Please try again.");
-    } finally {
-      setIsSearching(false);
-    }
-  };
+    };
+    
+    fetchLivePhoto();
+
+    return () => { isMounted = false; };
+  }, [data.activity]);
 
   return (
     <div
@@ -128,26 +128,6 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
           </span>
         </div>
 
-        {/* Live Photo Search Button */}
-        {!loadedImage && (
-          <button
-            onClick={handleSearchPhoto}
-            disabled={isSearching}
-            className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 disabled:bg-black/45 text-white text-[10px] font-bold px-2.5 py-1 rounded-xl backdrop-blur-md transition-all flex items-center gap-1.5 cursor-pointer border border-white/10 hover:scale-[1.03] active:scale-[0.97]"
-          >
-            {isSearching ? (
-              <>
-                <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-                Searching...
-              </>
-            ) : (
-              "📷 Load Live Photo"
-            )}
-          </button>
-        )}
       </div>
 
       {/* Content */}
