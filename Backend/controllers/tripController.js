@@ -137,6 +137,7 @@ export const createTrip = asyncHandler(async (req, res) => {
             foodNearby: opt.foodNearby || [],
             features: opt.features || opt.amenities || [],
             address: opt.address || opt.area || "",
+            image: opt.image || "",
           })),
           selectedOption: stayData.options?.[0]
             ? {

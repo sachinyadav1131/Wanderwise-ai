@@ -69,6 +69,7 @@ class HotelOption(BaseModel):
     rating: float                         # out of 5
     amenities: list[str] = Field(default_factory=list)
     distance_from_center_km: float
+    image: Optional[str] = None
 
 class HotelResult(BaseModel):
     """Output schema for the find_hotels MCP tool."""

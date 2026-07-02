@@ -79,6 +79,7 @@ export const generateItinerary = asyncHandler(async (req, res, next) => {
           foodNearby: opt.foodNearby || [],
           features: opt.features || opt.amenities || [],
           address: opt.address || opt.area || "",
+          image: opt.image || "",
         })),
         selectedOption: stayData.options?.[0]
           ? {

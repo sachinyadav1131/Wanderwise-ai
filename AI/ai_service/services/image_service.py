@@ -2,6 +2,7 @@ import logging
 import urllib.parse
 import re
 import httpx
+import os
 
 logger = logging.getLogger("services.image_service")
 
@@ -57,37 +58,24 @@ class ImageService:
         except Exception as e:
             logger.warning(f"Wikimedia Commons API query failed: {e}")
 
-        # 3. Fallback to DuckDuckGo Image Search
-        ddg_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        query_ddg = clean_query
+        # 3. Fallback to Pexels API Image Search
+        pexels_key = os.getenv("PEXELS_API_KEY", "WrSsfxXTP2bzx3nartEgbBMBfIfkkiI2vct2NYu1SiKm8ZMkTJGC7JUV")
         try:
-            async with httpx.AsyncClient(headers=ddg_headers, follow_redirects=True, timeout=10.0) as client:
-                logger.info(f"Searching DuckDuckGo Images for: '{query_ddg}'")
-                search_url = f"https://duckduckgo.com/?q={urllib.parse.quote(query_ddg)}"
-                response = await client.get(search_url)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                logger.info(f"Searching Pexels Images for: '{clean_query}'")
+                search_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(clean_query)}&per_page=3"
+                headers = {"Authorization": pexels_key}
                 
+                response = await client.get(search_url, headers=headers)
                 if response.status_code == 200:
-                    vqd_match = re.search(r'vqd=([0-9-]+)', response.text)
-                    if not vqd_match:
-                        vqd_match = re.search(r'vqd=["\']?([a-zA-Z0-9-]+)["\']?', response.text)
-                    
-                    if vqd_match:
-                        vqd = vqd_match.group(1)
-                        api_url = f"https://duckduckgo.com/d.js?q={urllib.parse.quote(query_ddg)}&vqd={vqd}&s=0&o=json&api=d.js"
-                        api_response = await client.get(api_url)
-                        
-                        if api_response.status_code == 200:
-                            data = api_response.json()
-                            results = data.get("results", [])
-                            for item in results[:5]:
-                                img_url = item.get("image")
-                                if img_url and img_url.startswith("http") and img_url.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
-                                    logger.info(f"Found DuckDuckGo image for '{clean_query}': {img_url}")
-                                    return img_url
+                    data = response.json()
+                    photos = data.get("photos", [])
+                    if photos:
+                        img_url = photos[0]["src"]["landscape"]
+                        logger.info(f"Found Pexels image for '{clean_query}': {img_url}")
+                        return img_url
         except Exception as e:
-            logger.warning(f"DuckDuckGo search failed: {e}")
+            logger.warning(f"Pexels API search failed: {e}")
 
         # 4. Return curated, beautiful Unsplash fallback matching the category
         logger.info(f"All image search APIs failed. Returning curated category fallback: {fallback_url}")

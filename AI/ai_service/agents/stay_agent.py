@@ -38,6 +38,7 @@ class StayAgent(BaseAgent):
             "area": "",
             "budget_per_night": float(budget_per_night),
             "stay_preference": trip.stayPreference,
+            "travelers": int(trip.travelers or 1),
         })
 
         options = hotel_result.get("options", [])
@@ -63,6 +64,7 @@ class StayAgent(BaseAgent):
                         "amenities": h.get("amenities", []),
                         "address": h.get("area") or area,
                         "distanceFromRoute": f"{h.get('distance_from_center_km', 1.0)} km from center",
+                        "image": h.get("image"),
                     }
                     for h in options[:3]  # Surface top 3 options
                 ],

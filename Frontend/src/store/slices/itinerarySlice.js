@@ -11,9 +11,9 @@ const formatItineraryResponse = (itineraries, tripId) => {
     location: opt.address || opt.distanceFromRoute || "Kyoto",
     pricePerNight: opt.pricePerNight,
     rating: opt.rating || 4.5,
-    image: opt.type === "Hostel" 
+    image: opt.image || (opt.type === "Hostel" 
       ? "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop"
-      : "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&auto=format&fit=crop",
+      : "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&auto=format&fit=crop"),
     description: opt.features?.join(", ") || opt.rationale || "Comfortable stay option.",
   }));
 
