@@ -310,3 +310,10 @@ span.rounded-full[class*="px-"] {
   padding-left: 1.15rem !important; /* 18px left padding */
   padding-right: 1.15rem !important; /* 18px right padding */
 }
+
+/* Force smaller padding on tiny text badges to keep them proportional */
+span.rounded-full.text-\[10px\][class*="px-"],
+span.rounded-full.text-xs[class*="px-"] {
+  padding-left: 0.625rem !important; /* 10px padding */
+  padding-right: 0.625rem !important;
+}

@@ -42,7 +42,7 @@ export default function ApprovalModal() {
         className="w-full max-w-5xl bg-white border border-gray-200/80 rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-fade-up"
       >
         {/* Header */}
-        <div className="p-6 border-b border-gray-150 flex items-center justify-between bg-gray-50/50">
+        <div style={{ padding: "24px 32px" }} className="border-b border-gray-150 flex items-center justify-between bg-gray-50/50">
           <div>
             <h3
               className="text-2xl font-extrabold text-gray-900 flex items-center gap-2"
@@ -64,7 +64,7 @@ export default function ApprovalModal() {
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-6 sm:p-8 overflow-y-auto flex-1 space-y-8">
+        <div style={{ padding: "32px" }} className="overflow-y-auto flex-1 space-y-8">
           {/* Explanation Alert Banner */}
           <div className="p-5 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-start gap-4">
             <span className="text-2xl mt-0.5">💡</span>
@@ -156,12 +156,12 @@ export default function ApprovalModal() {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-bold block">{act.title}</span>
                             {isNew && (
-                              <span className="text-[10px] bg-emerald-500/20 text-emerald-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-emerald-500/20 text-emerald-600 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
                                 New
                               </span>
                             )}
                             {isModified && (
-                              <span className="text-[10px] bg-amber-500/20 text-amber-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-amber-500/20 text-amber-600 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
                                 Shifted
                               </span>
                             )}
@@ -192,7 +192,7 @@ export default function ApprovalModal() {
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-gray-50 border-t border-gray-150 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div style={{ padding: "24px 32px" }} className="bg-gray-50 border-t border-gray-150 flex flex-col sm:flex-row justify-between items-center gap-4">
           {/* Resource impact details */}
           <div className="text-sm text-gray-600 font-medium">
             Estimated Impact:{" "}
