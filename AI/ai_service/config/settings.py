@@ -1,5 +1,22 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+
+# Helper to automatically load config keys from Node.js backend environment if local .env is missing/incomplete
+def load_backend_env():
+    backend_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../Backend/config/config.env"))
+    if os.path.exists(backend_env_path):
+        with open(backend_env_path, "r") as f:
+            for line in f:
+                if "=" in line:
+                    key, val = line.strip().split("=", 1)
+                    k = key.strip()
+                    v = val.strip()
+                    # Do not overwrite already set system env vars
+                    if k in ["GROQ_API_KEY", "HUGGINGFACEHUB_API_TOKEN"] and not os.environ.get(k):
+                        os.environ[k] = v
+
+load_backend_env()
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -8,8 +25,14 @@ class Settings(BaseSettings):
     api_key: str = Field("WW_SECRET_TOKEN_2026", validation_alias="API_KEY")
     port: int = Field(8000, validation_alias="PORT")
     host: str = Field("0.0.0.0", validation_alias="HOST")
-    llm_provider: str = Field("mock", validation_alias="LLM_PROVIDER")
+    llm_provider: str = Field("groq", validation_alias="LLM_PROVIDER")
     mcp_enabled: bool = Field(True, validation_alias="MCP_ENABLED")
+
+    # -----------------------------------------------------------------------
+    # LLM — Groq
+    # -----------------------------------------------------------------------
+    groq_api_key: str = Field("", validation_alias="GROQ_API_KEY")
+    groq_model: str = Field("llama-3.3-70b-versatile", validation_alias="GROQ_MODEL")
 
     # -----------------------------------------------------------------------
     # LLM — Google Gemini

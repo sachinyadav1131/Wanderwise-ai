@@ -39,7 +39,8 @@ export const createTrip = asyncHandler(async (req, res) => {
   // Translate simple frontend schema to DB schema if needed
   if (!startDate && duration) {
     startDate = new Date();
-    endDate = new Date(Date.now() + Number(duration) * 24 * 60 * 60 * 1000);
+    // For a duration of N days, the end date is N-1 days after the start date (e.g. 1-day trip ends today)
+    endDate = new Date(Date.now() + (Number(duration) - 1) * 24 * 60 * 60 * 1000);
   }
 
   if (!totalBudget && budget) {

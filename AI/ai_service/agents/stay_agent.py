@@ -61,6 +61,8 @@ class StayAgent(BaseAgent):
                         "type": h["type"],
                         "rating": h["rating"],
                         "amenities": h.get("amenities", []),
+                        "address": h.get("area") or area,
+                        "distanceFromRoute": f"{h.get('distance_from_center_km', 1.0)} km from center",
                     }
                     for h in options[:3]  # Surface top 3 options
                 ],

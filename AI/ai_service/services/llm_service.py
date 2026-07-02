@@ -3,6 +3,7 @@ from ai_service.config.settings import settings
 from ai_service.services.providers.mock_provider import MockProvider
 from ai_service.services.providers.gemini_provider import GeminiProvider
 from ai_service.services.providers.openai_provider import OpenAIProvider
+from ai_service.services.providers.groq_provider import GroqProvider
 import logging
 
 logger = logging.getLogger("LLMService")
@@ -12,7 +13,8 @@ class LLMService:
         self.providers = {
             "mock": MockProvider(),
             "gemini": GeminiProvider(),
-            "openai": OpenAIProvider()
+            "openai": OpenAIProvider(),
+            "groq": GroqProvider()
         }
 
     def _get_provider(self, name: str):

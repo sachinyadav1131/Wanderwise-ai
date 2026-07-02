@@ -6,7 +6,8 @@ const formatTripData = (trip) => {
   if (!trip) return null;
   const start = new Date(trip.startDate);
   const end = new Date(trip.endDate);
-  const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
+  // Calculate duration in days (difference in days + 1, e.g. July 2 to July 5 is 4 days)
+  const duration = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1 || 1;
 
   let budget = "Moderate";
   if (trip.totalBudget) {

@@ -85,6 +85,7 @@ async def find_places(
     destination: str,
     category: str = "attraction",
     interests: list[str] | None = None,
+    count: int = 6,
 ) -> PlacesResult:
     """
     MCP Tool Handler — find_places
@@ -93,6 +94,7 @@ async def find_places(
         destination: City/destination name (e.g. "Delhi").
         category:    One of: attraction, indoor, market, cafe.
         interests:   User interests to boost matching places (e.g. ["history", "food"]).
+        count:       Number of unique places to generate.
 
     Returns:
         PlacesResult with a ranked list of PlaceItem entries.
@@ -100,14 +102,87 @@ async def find_places(
     interests = interests or []
     logger.info(
         f"[find_places] destination='{destination}' category='{category}' "
-        f"interests={interests}"
+        f"interests={interests} count={count}"
     )
 
     cat_key = category.lower()
     lookup_key = f"{destination.lower()}:{cat_key}"
 
-    # Fallback: try generic Delhi catalogue if destination not found
-    raw_places = _PLACES_CATALOGUE.get(lookup_key) or _PLACES_CATALOGUE.get(f"delhi:{cat_key}", [])
+    # If the lookup key is in the catalogue, return it. Otherwise, generate dynamically using LLM.
+    if lookup_key in _PLACES_CATALOGUE:
+        raw_places = _PLACES_CATALOGUE[lookup_key]
+    elif f"{destination.lower().split(',')[0].strip()}:{cat_key}" in _PLACES_CATALOGUE:
+        raw_places = _PLACES_CATALOGUE[f"{destination.lower().split(',')[0].strip()}:{cat_key}"]
+    else:
+        import json
+        from ai_service.services.llm_service import llm_service
+        try:
+            logger.info(f"Destination '{destination}' not in catalog. Requesting custom places from LLM...")
+            prompt = f"""Generate a list of {count} real and popular '{category}' options in '{destination}'.
+Return ONLY a valid JSON object matching this schema (do not wrap in markdown or any other explanation):
+{{
+  "places": [
+    {{
+      "name": "Name of the place/attraction/cafe",
+      "category": "{category}",
+      "location": "Specific location or address in {destination}",
+      "entry_fee": 0.0,
+      "avg_duration_minutes": 90,
+      "tags": ["tag1", "tag2"],
+      "is_indoor": false
+    }}
+  ]
+}}"""
+            response_text = await llm_service.generate_response(
+                prompt=prompt,
+                system_instruction="You are a helpful travel assistant. Always reply with raw valid JSON matching the requested schema. No conversational preamble.",
+                structured_json=True
+            )
+            
+            cleaned_text = response_text.strip()
+            if cleaned_text.startswith("```"):
+                lines = cleaned_text.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                cleaned_text = "\n".join(lines).strip()
+                
+            data = json.loads(cleaned_text)
+            if isinstance(data, dict) and "places" in data:
+                raw_places = data["places"]
+            elif isinstance(data, list):
+                raw_places = data
+            else:
+                raise ValueError("Unexpected JSON structure returned from LLM")
+
+            normalized = []
+            for item in raw_places:
+                if isinstance(item, dict):
+                    normalized.append({
+                        "name": item.get("name") or "Sight",
+                        "category": item.get("category") or category,
+                        "location": item.get("location") or destination,
+                        "entry_fee": float(item.get("entry_fee") or 0.0),
+                        "avg_duration_minutes": int(item.get("avg_duration_minutes") or 90),
+                        "tags": item.get("tags") or [],
+                        "is_indoor": bool(item.get("is_indoor") or False)
+                    })
+                elif isinstance(item, str):
+                    normalized.append({
+                        "name": item,
+                        "category": category,
+                        "location": destination,
+                        "entry_fee": 0.0,
+                        "avg_duration_minutes": 90,
+                        "tags": [],
+                        "is_indoor": False
+                    })
+            raw_places = normalized
+            logger.info(f"Successfully generated and normalized {len(raw_places)} custom places for '{destination}' using LLM.")
+        except Exception as e:
+            logger.error(f"Failed to generate custom places from LLM: {str(e)}. Falling back to Delhi catalogue.")
+            raw_places = _PLACES_CATALOGUE.get(f"delhi:{cat_key}", [])
 
     # Sort by interest match score (descending), preserving original order on ties
     scored = sorted(raw_places, key=lambda p: _interest_score(p, interests), reverse=True)
