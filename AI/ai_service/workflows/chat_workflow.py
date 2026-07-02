@@ -95,6 +95,8 @@ class ChatWorkflow(BaseWorkflow):
         else:
             comp_res = state.context.get("companion_result") or {}
             reply_text = comp_res.get("replyText", reply_text)
+            has_suggestion = comp_res.get("hasSuggestion", False)
+            suggestion = comp_res.get("suggestion")
 
         state.context["output"] = {
             "replyText": reply_text,

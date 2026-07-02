@@ -24,61 +24,126 @@ class CompanionAgent(BaseAgent):
 
     async def _execute_logic(self, state: WorkflowState) -> tuple[str, str, dict | None]:
         user_message: str = state.context.get("message", "")
-        tokens = set(user_message.lower().split())
+        trip = state.tripDetails
+        activities = state.activities
 
-        # Detect intent from keywords
-        matched_keywords = _REPLAN_KEYWORDS & tokens
-        has_replan_intent = len(matched_keywords) > 0
+        import json
+        from ai_service.services.llm_service import llm_service
 
-        if has_replan_intent:
-            reply_text = (
-                "I've detected a change request in your message. "
-                "I'm checking the situation and will propose updated plans shortly! "
-                f"(Triggered by: {', '.join(matched_keywords)})"
+        # Prompt instruction requesting structured json parsing for user modification intent
+        system_instruction = (
+            "You are a helpful travel companion AI. You analyze user messages against their current itinerary "
+            "activities to check if they want to modify their plan (add, update/reschedule, or delete/cancel activities). "
+            "Always respond with a raw JSON object matching the requested schema. No explanation or conversation preamble."
+        )
+
+        prompt = f"""You are assisting a traveler on their trip to '{trip.destination}'.
+User Message: "{user_message}"
+
+Current Itinerary Activities:
+{json.dumps(activities, indent=2)}
+
+Determine if the user is asking to modify their itinerary (e.g., cancel a stop, move an activity to another day/time, or insert a new activity).
+If they are, set "hasSuggestion" to true and populate the "suggestion" object conforming to the schema below.
+Otherwise, set "hasSuggestion" to false and "suggestion" to null.
+
+Format your response EXACTLY as a JSON object matching this schema:
+{{
+  "replyText": "Explain what updates you proposed in a friendly way, or answer general questions.",
+  "hasSuggestion": true,
+  "suggestion": {{
+    "triggerType": "Chat",
+    "reason": "Brief reason for the suggestion (e.g., user request)",
+    "generatedSummary": "Reschedule X to day Y",
+    "estimatedBudgetImpact": 0.0,
+    "estimatedTimeImpact": 0.0,
+    "beforeSnapshot": {{
+      "activities": [
+        // List of affected activities in their current state before change
+      ]
+    }},
+    "afterSnapshot": {{
+      "activities": [
+        // List of affected activities in their state after change
+      ]
+    }},
+    "suggestedChanges": {{
+      "activities": [
+        // Array of changes to execute on database.
+        // For ADD:
+        // {{ "action": "ADD", "data": {{ "title": "Visit X", "location": "Location X", "dayNumber": 1, "timeSlot": "Morning", "time": "09:00 AM", "cost": 0, "estimatedDuration": 60 }} }}
+        // For UPDATE:
+        // {{ "action": "UPDATE", "activityId": "mongo_id_string_from_current_itinerary", "data": {{ "dayNumber": 2, "timeSlot": "Evening", "time": "06:00 PM" }} }}
+        // For DELETE:
+        // {{ "action": "DELETE", "activityId": "mongo_id_string_from_current_itinerary" }}
+      ]
+    }}
+  }}
+}}
+"""
+
+        try:
+            response_text = await llm_service.generate_response(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                structured_json=True
             )
-            suggestion = {
-                "action": "REPLAN",
-                "reason": f"User message indicates intent: {', '.join(matched_keywords)}",
-            }
-
-            # ── MCP Tool Call: create_notification ────────────────────────
-            await mcp_client.call_tool("create_notification", {
-                "trip_id": state.tripId,
-                "type": "in_app",
-                "title": "Trip Change Request Detected",
-                "message": f"Your companion AI detected a change request: \"{user_message[:120]}\"",
-                "metadata": {
-                    "triggeredBy": list(matched_keywords),
-                    "source": "CompanionAgent",
-                },
-            })
-        else:
-            reply_text = (
-                "I'm here to guide your trip! You can tell me about weather changes, "
-                "ask to skip destinations, or request indoor alternatives anytime."
-            )
+            
+            cleaned_text = response_text.strip()
+            if cleaned_text.startswith("```"):
+                lines = cleaned_text.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                cleaned_text = "\n".join(lines).strip()
+                
+            data = json.loads(cleaned_text)
+            reply_text = data.get("replyText") or "I can help you change your trip. Just let me know what to update!"
+            has_suggestion = bool(data.get("hasSuggestion", False))
+            suggestion = data.get("suggestion") if has_suggestion else None
+        except Exception as e:
+            logger.error(f"[CompanionAgent] Failed to parse LLM response: {e}")
+            reply_text = "I'm here to guide your trip! You can tell me to reschedule, delete or add destinations anytime."
+            has_suggestion = False
             suggestion = None
 
+        if has_suggestion and suggestion:
+            # ── MCP Tool Call: create_notification ────────────────────────
+            try:
+                await mcp_client.call_tool("create_notification", {
+                    "trip_id": state.tripId,
+                    "type": "in_app",
+                    "title": "Itinerary Proposal Ready",
+                    "message": f"AI proposed: \"{suggestion.get('generatedSummary')}\"",
+                    "metadata": {
+                        "source": "CompanionAgent",
+                    },
+                })
+            except Exception:
+                pass
+
         reasoning = (
-            f"Processed user message. "
-            + (f"Detected replan intent from: {matched_keywords}." if has_replan_intent
-               else "No significant change intent detected.")
+            f"Processed chat query: '{user_message[:50]}...'. "
+            f"LLM suggestion proposal: {has_suggestion}."
         )
 
         details = {
             "replyText": reply_text,
-            "hasSuggestion": has_replan_intent,
+            "hasSuggestion": has_suggestion,
             "suggestion": suggestion,
-            "detectedKeywords": list(matched_keywords),
         }
 
         # ── MCP Tool Call: store_agent_log ───────────────────────────────
-        await mcp_client.call_tool("store_agent_log", {
-            "trip_id": state.tripId,
-            "agent_name": self.name,
-            "action": "ChatResponse",
-            "reasoning": reasoning,
-            "details": details,
-        })
+        try:
+            await mcp_client.call_tool("store_agent_log", {
+                "trip_id": state.tripId,
+                "agent_name": self.name,
+                "action": "ChatResponse",
+                "reasoning": reasoning,
+                "details": details,
+            })
+        except Exception:
+            pass
 
         return "ChatResponse", reasoning, details

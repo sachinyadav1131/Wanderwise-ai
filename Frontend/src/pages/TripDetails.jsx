@@ -113,12 +113,19 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
         </h4>
         <p className="text-xs text-gray-500 leading-relaxed mb-6">{data.description}</p>
 
-        {/* Timing chip */}
-        <div className="flex items-center gap-1.5 mb-6">
-          <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-xs font-semibold text-indigo-600">{data.timing}</span>
+        {/* Timing chip & Cost tag */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-xs font-semibold text-indigo-600">{data.timing}</span>
+          </div>
+          {tripStatus === "Started" && data.cost > 0 && (
+            <span className="text-xs font-extrabold text-gray-600 bg-gray-100 border border-gray-200 px-2.5 py-0.5 rounded-lg shadow-sm">
+              ₹{data.cost}
+            </span>
+          )}
         </div>
 
         {/* Checklist */}
