@@ -119,6 +119,7 @@ export const generateItinerary = asyncHandler(async (req, res, next) => {
         dayNumber,
         title: actData.title,
         description: actData.description || "",
+        image: actData.image || "",
         timeSlot: actData.timeSlot || "Morning",
         time: actData.time || "",
         location: actData.location || trip.destination,
@@ -177,4 +178,40 @@ export const getItineraryByTripId = asyncHandler(async (req, res, next) => {
     count: itineraries.length,
     data: itineraries,
   });
+});
+
+// @desc    Search cover/activity image using DuckDuckGo (proxied to Python service)
+// @route   GET /api/v1/itineraries/search-image
+// @access  Private
+export const searchImage = asyncHandler(async (req, res) => {
+  const { query } = req.query;
+  if (!query) {
+    res.status(400);
+    throw new Error("Search query parameter is required.");
+  }
+
+  const aiBaseUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+  try {
+    const response = await fetch(`${aiBaseUrl}/api/v1/ai/cover-image`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ destination: query }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI service returned status code ${response.status}`);
+    }
+
+    const json = await response.json();
+    return res.status(200).json({
+      success: true,
+      imageUrl: json?.data?.coverImage || "",
+    });
+  } catch (error) {
+    console.error("[Backend Search Image Proxy] Failed:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 });

@@ -2,6 +2,7 @@ import express from "express";
 import {
   generateItinerary,
   getItineraryByTripId,
+  searchImage,
 } from "../controllers/itineraryController.js";
 import { isAuthenticated } from "../middleware/authMiddleware.js";
 
@@ -9,6 +10,9 @@ const router = express.Router();
 
 // All itinerary endpoints require authentication
 router.use(isAuthenticated);
+
+// Search activity image using DuckDuckGo
+router.get("/search-image", searchImage);
 
 // Generate itinerary for a trip
 router.post("/generate/:tripId", generateItinerary);

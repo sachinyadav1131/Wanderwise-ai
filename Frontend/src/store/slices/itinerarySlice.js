@@ -20,12 +20,38 @@ const formatItineraryResponse = (itineraries, tripId) => {
   const days = itineraries.map((dayItin) => {
     const slots = {};
     (dayItin.activities || []).forEach((act) => {
+      // Prioritize the server-provided activity image; fallback to categorized professional Unsplash photos for existing trips
+      let image = act.image;
+      if (!image || image.includes("photo-1507525428034-b723cf961d3e")) {
+        image = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&auto=format&fit=crop"; // default travel photo
+        const title = (act.title || "").toLowerCase();
+        if (title.includes("temple") || title.includes("mandir") || title.includes("ghat") || title.includes("imambara") || title.includes("mosque") || title.includes("tomb") || title.includes("church") || title.includes("cathedral") || title.includes("monument")) {
+          image = "https://images.unsplash.com/photo-1604580864964-0462f5d5b1a8?w=400&auto=format&fit=crop"; // Spiritual / Heritage Monument
+        } else if (title.includes("fort") || title.includes("palace") || title.includes("castle") || title.includes("heritage") || title.includes("kothi") || title.includes("residency") || title.includes("ruin") || title.includes("arch")) {
+          image = "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=400&auto=format&fit=crop"; // Indian Heritage Palace
+        } else if (title.includes("zoo") || title.includes("safari") || title.includes("animal") || title.includes("wildlife")) {
+          image = "https://images.unsplash.com/photo-1534567153574-2b12153a87f0?w=400&auto=format&fit=crop"; // Zoo / Animals
+        } else if (title.includes("park") || title.includes("garden") || title.includes("sanctuary") || title.includes("forest") || title.includes("vihar") || title.includes("lawn") || title.includes("island")) {
+          image = "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&auto=format&fit=crop"; // Green Park / Garden
+        } else if (title.includes("valley") || title.includes("hill") || title.includes("nature") || title.includes("trail") || title.includes("pass") || title.includes("mountain") || title.includes("peak")) {
+          image = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&auto=format&fit=crop"; // Mountain Valleys / Scenery
+        } else if (title.includes("market") || title.includes("street") || title.includes("mall") || title.includes("bazaar") || title.includes("stroll") || title.includes("road") || title.includes("shop")) {
+          image = "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=400&auto=format&fit=crop"; // Shopping streets
+        } else if (title.includes("water") || title.includes("lake") || title.includes("river") || title.includes("spring") || title.includes("falls") || title.includes("waterfall") || title.includes("beach") || title.includes("sea")) {
+          image = "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&auto=format&fit=crop"; // Water body
+        } else if (title.includes("museum") || title.includes("exhibition") || title.includes("gallery") || title.includes("university") || title.includes("college") || title.includes("science") || title.includes("planetarium")) {
+          image = "https://images.unsplash.com/photo-1566121318599-79a0cfdd50af?w=400&auto=format&fit=crop"; // Museum / Science centre
+        } else if (title.includes("cafe") || title.includes("restaurant") || title.includes("food") || title.includes("dinner") || title.includes("lunch") || title.includes("breakfast") || title.includes("sweet") || title.includes("bakery")) {
+          image = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop"; // Cafe / Dining
+        }
+      }
+
       slots[act.timeSlot] = {
         _id: act._id,
         activity: act.title,
         description: act.description,
         timing: act.time || "Flexible",
-        image: undefined, // Let it fall back to default unsplash
+        image,
         cost: act.cost,
         location: act.location,
         transportDetails: act.transportDetails,

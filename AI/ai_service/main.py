@@ -246,6 +246,20 @@ async def generate_detailed_itinerary(request: TripRequest):
         data=final_state.context.get("output", {})
     )
 
+class CoverImageRequest(BaseModel):
+    destination: str
+
+@app.post("/api/v1/ai/cover-image", response_model=APIResponse[dict])
+async def generate_cover_image(request: CoverImageRequest):
+    logger.info(f"Executing Cover Image workflow for: {request.destination}")
+    from ai_service.services.image_service import image_service
+    cover_url = await image_service.generate_cover_image(request.destination)
+    return APIResponse(
+        success=True,
+        message="Cover image generated successfully.",
+        data={"coverImage": cover_url}
+    )
+
 class ChatPayload(BaseModel):
     tripId: str
     message: str

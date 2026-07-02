@@ -13,7 +13,11 @@ def load_backend_env():
                     k = key.strip()
                     v = val.strip()
                     # Do not overwrite already set system env vars
-                    if k in ["GROQ_API_KEY", "HUGGINGFACEHUB_API_TOKEN"] and not os.environ.get(k):
+                    target_keys = [
+                        "GROQ_API_KEY", "HUGGINGFACEHUB_API_TOKEN", "HF_API_KEY", "HUGGINGFACE_API_KEY",
+                        "CLOUDINARY_CLIENT_NAME", "CLOUDINARY_CLIENT_API", "CLOUDINARY_CLIENT_SECRET"
+                    ]
+                    if k in target_keys and not os.environ.get(k):
                         os.environ[k] = v
 
 load_backend_env()
@@ -27,6 +31,14 @@ class Settings(BaseSettings):
     host: str = Field("0.0.0.0", validation_alias="HOST")
     llm_provider: str = Field("groq", validation_alias="LLM_PROVIDER")
     mcp_enabled: bool = Field(True, validation_alias="MCP_ENABLED")
+
+    # -----------------------------------------------------------------------
+    # Cloudinary & Hugging Face (AI Cover Image)
+    # -----------------------------------------------------------------------
+    cloudinary_client_name: str = Field("", validation_alias="CLOUDINARY_CLIENT_NAME")
+    cloudinary_client_api: str = Field("", validation_alias="CLOUDINARY_CLIENT_API")
+    cloudinary_client_secret: str = Field("", validation_alias="CLOUDINARY_CLIENT_SECRET")
+    hf_api_key: str = Field("", validation_alias="HF_API_KEY")
 
     # -----------------------------------------------------------------------
     # LLM — Groq

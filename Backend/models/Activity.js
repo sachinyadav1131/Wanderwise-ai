@@ -26,6 +26,9 @@ const activitySchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    image: {
+      type: String,
+    },
     timeSlot: {
       type: String,
       enum: ["Morning", "Afternoon", "Evening", "Night"],

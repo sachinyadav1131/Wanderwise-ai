@@ -4,6 +4,7 @@ import { Activity } from "../models/Activity.js";
 import { StaySuggestion } from "../models/StaySuggestion.js";
 import { FoodSuggestion } from "../models/FoodSuggestion.js";
 import { aiService } from "../services/aiService.js";
+import { huggingFaceService } from "../services/huggingFaceService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 // Helper: compute dates array between start and end
@@ -69,7 +70,15 @@ export const createTrip = asyncHandler(async (req, res) => {
     throw new Error("Destination is required.");
   }
 
-  // 1. Save the base trip record
+  // 1. Generate cover image dynamically using Hugging Face
+  let coverImage = "";
+  try {
+    coverImage = await huggingFaceService.generateDestinationImage(destination);
+  } catch (imgError) {
+    console.error("Cover image generation failed:", imgError.message);
+  }
+
+  // 2. Save the base trip record
   const trip = await Trip.create({
     user: req.user._id,
     destination,
@@ -83,6 +92,7 @@ export const createTrip = asyncHandler(async (req, res) => {
     interests,
     placesToAvoid,
     specialNotes,
+    coverImage,
     status: "Draft",
   });
 
@@ -167,6 +177,7 @@ export const createTrip = asyncHandler(async (req, res) => {
           dayNumber,
           title: actData.title,
           description: actData.description || "",
+          image: actData.image || "",
           timeSlot: actData.timeSlot || "Morning",
           time: actData.time || "",
           location: actData.location || destination,

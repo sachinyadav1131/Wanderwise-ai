@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
 import { fetchTripById, updateTripStatus, deleteTrip } from "../store/slices/tripSlice";
 import { fetchItinerary } from "../store/slices/itinerarySlice";
 import TripChatbot from "../components/TripChatbot";
@@ -82,15 +83,37 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
   const meta = SLOT_META[slot] || { icon: "📍", color: "bg-gray-50 border-gray-200 text-gray-700" };
   const activityId = `day${dayNum}-${slot.toLowerCase()}`;
 
+  const [loadedImage, setLoadedImage] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const currentImage = loadedImage || data.image;
+
+  const handleSearchPhoto = async () => {
+    setIsSearching(true);
+    try {
+      const response = await axios.get(`/api/v1/itineraries/search-image?query=${encodeURIComponent(data.activity)}`);
+      if (response.data?.success && response.data?.imageUrl) {
+        setLoadedImage(response.data.imageUrl);
+      } else {
+        alert("No live photo found for this place.");
+      }
+    } catch (err) {
+      console.error("Error searching photo:", err);
+      alert("Failed to fetch live photo. Please try again.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   return (
     <div
       id={`activity-${activityId}`}
       className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
     >
       {/* Photo */}
-      <div className="relative h-36 overflow-hidden">
+      <div className="relative h-36 overflow-hidden group">
         <img
-          src={data.image}
+          src={currentImage}
           alt={data.activity}
           className="w-full h-full object-cover"
           loading="lazy"
@@ -104,6 +127,27 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
             {meta.icon} {slot}
           </span>
         </div>
+
+        {/* Live Photo Search Button */}
+        {!loadedImage && (
+          <button
+            onClick={handleSearchPhoto}
+            disabled={isSearching}
+            className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 disabled:bg-black/45 text-white text-[10px] font-bold px-2.5 py-1 rounded-xl backdrop-blur-md transition-all flex items-center gap-1.5 cursor-pointer border border-white/10 hover:scale-[1.03] active:scale-[0.97]"
+          >
+            {isSearching ? (
+              <>
+                <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+                Searching...
+              </>
+            ) : (
+              "📷 Load Live Photo"
+            )}
+          </button>
+        )}
       </div>
 
       {/* Content */}

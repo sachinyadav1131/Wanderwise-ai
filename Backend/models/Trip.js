@@ -55,6 +55,9 @@ const tripSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    coverImage: {
+      type: String,
+    },
     status: {
       type: String,
       enum: ["Draft", "Planned", "Started", "Completed"],
