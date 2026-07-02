@@ -1,6 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { approveSuggestion, rejectSuggestion, clearActiveSuggestion } from "../store/slices/suggestionSlice";
+import { sendChatMessage } from "../store/slices/chatSlice";
+import { fetchItinerary } from "../store/slices/itinerarySlice";
 
 export default function ApprovalModal() {
   const dispatch = useDispatch();
@@ -10,11 +12,26 @@ export default function ApprovalModal() {
   if (!suggestion) return null;
 
   const handleApprove = () => {
-    dispatch(approveSuggestion(suggestion._id));
+    dispatch(approveSuggestion(suggestion._id))
+      .unwrap()
+      .then(() => {
+        dispatch(fetchItinerary(suggestion.trip));
+      });
   };
 
   const handleReject = () => {
     dispatch(rejectSuggestion(suggestion._id));
+  };
+
+  const handleReplan = () => {
+    // Dispatch a new message requesting alternative plan
+    dispatch(sendChatMessage({ 
+      tripId: suggestion.trip, 
+      message: `I don't like this suggestion. Please suggest an alternative plan instead of: ${suggestion.generatedSummary || suggestion.explanation}` 
+    }));
+    // Close the modal and reject the current bad suggestion implicitly or explicitly
+    dispatch(rejectSuggestion(suggestion._id));
+    dispatch(clearActiveSuggestion());
   };
 
   return (
@@ -196,6 +213,14 @@ export default function ApprovalModal() {
               id="reject-suggestion-btn"
             >
               Reject
+            </button>
+            <button
+              onClick={handleReplan}
+              disabled={loading}
+              className="flex-1 sm:flex-none px-6 py-3 bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-xl font-bold text-sm transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
+              id="replan-suggestion-btn"
+            >
+              <span>🪄</span> Replan
             </button>
             <button
               onClick={handleApprove}

@@ -24,11 +24,23 @@ class CompanionAgent(BaseAgent):
 
     async def _execute_logic(self, state: WorkflowState) -> tuple[str, str, dict | None]:
         user_message: str = state.context.get("message", "")
+        rejected_suggestions: list[str] = state.context.get("rejectedSuggestions", [])
         trip = state.tripDetails
         activities = state.activities
 
         import json
         from ai_service.services.llm_service import llm_service
+
+        rejected_prompt = ""
+        if rejected_suggestions:
+            rejected_prompt = "Previously REJECTED Plan Modifications:\n"
+            for plan in rejected_suggestions:
+                rejected_prompt += f"- {plan}\n"
+            rejected_prompt += (
+                "\nCRITICAL RULE: AVOID proposing any of the above plans again, unless the user's message "
+                "explicitly requests or refers to doing one of those rejected plans again (e.g. they changed their mind "
+                "and now want to apply it anyway)."
+            )
 
         # Prompt instruction requesting structured json parsing for user modification intent
         system_instruction = (
@@ -46,6 +58,11 @@ Current Itinerary Activities:
 Determine if the user is asking to modify their itinerary (e.g., cancel a stop, move an activity to another day/time, or insert a new activity).
 If they are, set "hasSuggestion" to true and populate the "suggestion" object conforming to the schema below.
 Otherwise, set "hasSuggestion" to false and "suggestion" to null.
+
+CRITICAL RULE FOR COLLISIONS: There can only be ONE primary activity per time slot (Morning, Afternoon, Evening) for a given day. 
+If you move or add an activity to a slot that already has an existing activity, you MUST explicitly generate an additional UPDATE or DELETE action to either move the existing activity to another slot (swap) or drop it completely. DO NOT leave two activities in the same time slot on the same day!
+
+{rejected_prompt}
 
 Format your response EXACTLY as a JSON object matching this schema:
 {{

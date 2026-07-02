@@ -44,9 +44,8 @@ function HotelCard({ hotel }) {
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-        {/* Price badge */}
         <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-md">
-          <span className="text-sm font-extrabold text-gray-900">${hotel.pricePerNight}</span>
+          <span className="text-sm font-extrabold text-gray-900">₹{hotel.pricePerNight}</span>
           <span className="text-xs text-gray-500">/night</span>
         </div>
       </div>
@@ -392,7 +391,7 @@ export default function TripDetails() {
                 <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1.5">
                   {destinationData.hotels.map((hotel) => (
                     <li key={hotel._id || hotel.name}>
-                      <span className="font-semibold text-gray-850">{hotel.name}</span> - {hotel.location} (${hotel.pricePerNight}/night)
+                      <span className="font-semibold text-gray-850">{hotel.name}</span> - {hotel.location} (₹{hotel.pricePerNight}/night)
                     </li>
                   ))}
                 </ul>

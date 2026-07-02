@@ -267,6 +267,7 @@ class ChatPayload(BaseModel):
     activities: list[dict] = Field(default_factory=list)
     currentProgress: float = 0.0
     tripDetails: Optional[TripRequest] = None
+    rejectedSuggestions: list[str] = Field(default_factory=list)
 
 @app.post("/api/v1/ai/chat", response_model=APIResponse[dict])
 async def chat_message(payload: ChatPayload):
@@ -279,7 +280,8 @@ async def chat_message(payload: ChatPayload):
         totalBudget=5000.0
     )
     context = {
-        "message": payload.message
+        "message": payload.message,
+        "rejectedSuggestions": payload.rejectedSuggestions
     }
     state = chat_work.initialize_state(
         trip_id=payload.tripId,

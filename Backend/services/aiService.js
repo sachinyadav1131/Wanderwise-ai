@@ -103,6 +103,12 @@ export const aiService = {
       .sort({ createdAt: -1 })
       .limit(10);
 
+    const rejectedSuggestions = await ChangeSuggestion.find({
+      trip: trip._id,
+      status: "Rejected"
+    }).select("generatedSummary");
+    const rejectedList = rejectedSuggestions.map((s) => s.generatedSummary).filter(Boolean);
+
     const completedCount = activities.filter(
       (a) => a.status === "Completed"
     ).length;
@@ -130,6 +136,7 @@ export const aiService = {
       })),
       currentProgress: completionProgress,
       tripDetails: buildTripRequestPayload(trip),
+      rejectedSuggestions: rejectedList,
     };
 
     // Log the AI request

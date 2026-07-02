@@ -15,9 +15,7 @@ export default function TripChatbot({ tripId }) {
         id="chatbot-toggle"
         onClick={() => setOpen((v) => !v)}
         title={open ? "Close Chat" : "Open AI Companion"}
-        className={`fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-110 gradient-brand ${
-          open ? "rotate-45" : ""
-        }`}
+        className="fixed bottom-6 right-6 z-55 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-110 gradient-brand"
       >
         {open ? (
           // X icon when open
@@ -36,10 +34,9 @@ export default function TripChatbot({ tripId }) {
       {open && (
         <div
           id="chatbot-panel"
-          className="fixed right-0 top-0 bottom-0 z-30 animate-slide-in-right shadow-2xl"
-          style={{ width: "340px" }}
+          className="fixed right-0 top-0 bottom-0 z-50 animate-slide-in-right shadow-2xl w-[340px] max-w-[90vw] sm:max-w-none flex"
         >
-          <ChatPanel tripId={tripId} />
+          <ChatPanel tripId={tripId} onClose={() => setOpen(false)} />
         </div>
       )}
     </>

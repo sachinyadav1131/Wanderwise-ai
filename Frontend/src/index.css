@@ -283,3 +283,30 @@ div[id^="day-block-"]:last-child {
   padding-bottom: 0 !important;
   border-bottom: none !important;
 }
+
+/* ─── Global Padding & Text Clipping Fixes ────────────────────────────────── */
+button, a, span {
+  box-sizing: border-box !important;
+}
+
+/* Prevent text wrapping inside buttons, links, and badges */
+a.rounded-xl, button.rounded-xl,
+a.rounded-2xl, button.rounded-2xl,
+a.rounded-full, button.rounded-full,
+span.rounded-full {
+  white-space: nowrap !important;
+}
+
+/* Force safe horizontal padding on custom buttons and links to prevent text clipping */
+a[class*="rounded-xl"], button[class*="rounded-xl"],
+a[class*="rounded-2xl"], button[class*="rounded-2xl"],
+a[class*="rounded-full"], button[class*="rounded-full"] {
+  padding-left: 1.5rem !important; /* 24px left padding */
+  padding-right: 1.5rem !important; /* 24px right padding */
+}
+
+/* Force safe padding on pill badges to prevent emojis/letters from touching borders */
+span.rounded-full[class*="px-"] {
+  padding-left: 1.15rem !important; /* 18px left padding */
+  padding-right: 1.15rem !important; /* 18px right padding */
+}

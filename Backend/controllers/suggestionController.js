@@ -141,6 +141,17 @@ export const approveSuggestion = asyncHandler(async (req, res, next) => {
       suggestion.status = "Approved";
       await suggestion.save({ session });
 
+      // Expire all other pending or rejected suggestions for this trip
+      await ChangeSuggestion.updateMany(
+        {
+          trip: trip._id,
+          _id: { $ne: suggestion._id },
+          status: { $in: ["Pending", "Rejected"] }
+        },
+        { status: "Expired" },
+        { session }
+      );
+
       // Create confirming AI Chat message in history
       await ChatMessage.create([
         {

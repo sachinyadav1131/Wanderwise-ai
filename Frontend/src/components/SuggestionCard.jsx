@@ -12,7 +12,7 @@ export default function SuggestionCard({ suggestion }) {
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-amber-400 tracking-wide uppercase">AI Recommendation</span>
         <span className="text-xs text-slate-400">
-          Budget: {suggestion.estimatedBudgetImpact >= 0 ? `+$${suggestion.estimatedBudgetImpact}` : `-$${Math.abs(suggestion.estimatedBudgetImpact)}`}
+          Budget: {suggestion.estimatedBudgetImpact >= 0 ? `+₹${suggestion.estimatedBudgetImpact}` : `-₹${Math.abs(suggestion.estimatedBudgetImpact)}`}
         </span>
       </div>
       
