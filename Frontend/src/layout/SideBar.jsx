@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "../store/slices/authSlice";
 
-export default function SideBar() {
+export default function SideBar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -50,21 +50,43 @@ export default function SideBar() {
   ];
 
   return (
-    <aside
-      className="w-64 bg-[#111827] text-gray-300 flex flex-col h-screen fixed left-0 top-0 z-40 border-r border-gray-800 shadow-xl"
-      style={{ width: "256px" }}
-    >
-      {/* Brand Header */}
-      <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-800">
-        <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center shadow-md">
-          <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white" stroke="currentColor" strokeWidth={2.2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+    <>
+      {/* Mobile backdrop overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-35 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside
+        className={`w-64 bg-[#111827] text-gray-300 flex flex-col h-screen fixed left-0 top-0 z-40 border-r border-gray-800 shadow-xl transition-transform duration-350 md:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{ width: "256px" }}
+      >
+        {/* Brand Header */}
+        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center shadow-md">
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-xl font-bold tracking-tight text-white" style={{ fontFamily: "var(--font-display)" }}>
+              <span className="text-indigo-400">Wander</span>wise
+            </span>
+          </div>
+          
+          {/* Mobile close button */}
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 md:hidden cursor-pointer"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <span className="text-xl font-bold tracking-tight text-white" style={{ fontFamily: "var(--font-display)" }}>
-          <span className="text-indigo-400">Wander</span>wise
-        </span>
-      </div>
 
       {/* Main Nav Links */}
       <div className="flex-1 px-4 py-6 space-y-7 overflow-y-auto">
@@ -149,5 +171,6 @@ export default function SideBar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

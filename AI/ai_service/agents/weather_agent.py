@@ -28,30 +28,35 @@ class WeatherAgent(BaseAgent):
             "date": start_date,
         })
 
-        # Determine if a weather detour is warranted (>50% rain probability)
-        needs_detour = weather.get("precipitation_pct", 0) > 50
+        # Determine if a weather detour is warranted (>50% rain probability or abnormal temp alert)
+        has_abnormal_alert = weather.get("has_abnormal_alert", False)
+        precipitation_pct = weather.get("precipitation_pct", 0)
+        needs_detour = (precipitation_pct > 50) or has_abnormal_alert
+        
         condition = weather.get("condition", "Unknown")
         advisory = weather.get("advisory") or "No advisory."
 
         if needs_detour:
             suggested_alternative = "National Museum (Indoor)"
+            alert_reason = weather.get("anomaly_reasoning") or f"Severe precipitation warning ({precipitation_pct}% chance of rain)."
             reasoning = (
-                f"Weather check via MCP: {condition} with "
-                f"{weather['precipitation_pct']}% precipitation at {destination}. "
-                f"Advisory: {advisory}. Proposing indoor alternative."
+                f"Weather alert: {alert_reason} "
+                f"Condition: {condition}, Temp: {weather.get('temperature_celsius')}°C. "
+                f"Proposing detour."
             )
         else:
             suggested_alternative = None
             reasoning = (
-                f"Weather check via MCP: {condition} conditions at {destination}. "
+                f"Weather check: {condition} conditions. Temp: {weather.get('temperature_celsius')}°C. "
                 f"No detour required."
             )
 
         details = {
             "weatherCheck": weather,
-            "weatherAlert": condition if needs_detour else None,
+            "weatherAlert": "AbnormalWeather" if needs_detour else None,
             "suggestedAlternative": suggested_alternative,
             "needsDetour": needs_detour,
+            "alertReason": weather.get("anomaly_reasoning") if has_abnormal_alert else f"Rain Forecasted ({precipitation_pct}%)" if precipitation_pct > 50 else None
         }
 
         # ── MCP Tool Call: store_agent_log ───────────────────────────────

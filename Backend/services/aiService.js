@@ -174,4 +174,64 @@ export const aiService = {
       suggestionId,
     };
   },
+
+  callMCPTool: async (toolName, args = {}) => {
+    const url = `${AI_BASE_URL()}/api/v1/mcp/call`;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool_name: toolName, args }),
+      });
+    } catch (networkErr) {
+      throw new ErrorHandler(
+        `AI service unreachable at ${url}: ${networkErr.message}`,
+        503
+      );
+    }
+    const json = await res.json();
+    if (!res.ok) {
+      throw new ErrorHandler(json?.error || `AI service returned HTTP ${res.status}`, res.status);
+    }
+    return json;
+  },
+
+  /**
+   * Invokes the replan workflow in the AI Python service.
+   */
+  replanTrip: async (trip, triggerType, reason, weatherAlertDetails = null) => {
+    const activities = await Activity.find({ trip: trip._id });
+    const payload = {
+      tripId: trip._id.toString(),
+      triggerType,
+      reason,
+      activities: activities.map((act) => ({
+        _id: act._id.toString(),
+        title: act.title,
+        location: act.location,
+        dayNumber: act.dayNumber,
+        timeSlot: act.timeSlot,
+        time: act.time,
+        status: act.status,
+        cost: act.cost,
+        isIndoor: act.isIndoor || false
+      })),
+      weatherAlertDetails,
+      tripDetails: {
+        destination: trip.destination,
+        startDate: new Date(trip.startDate).toISOString().split("T")[0],
+        endDate: new Date(trip.endDate).toISOString().split("T")[0],
+        totalBudget: trip.totalBudget,
+        travelers: trip.travelers || 1,
+        foodPreference: trip.foodPreference || "Any",
+        stayPreference: trip.stayPreference || "Any",
+        travelStyle: trip.travelStyle || "Moderate",
+        interests: trip.interests || [],
+        placesToAvoid: trip.placesToAvoid || [],
+        specialNotes: trip.specialNotes || null,
+      }
+    };
+    return await callFastAPI("/api/v1/ai/replan", payload);
+  },
 };

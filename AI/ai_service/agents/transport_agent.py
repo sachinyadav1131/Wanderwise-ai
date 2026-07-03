@@ -76,7 +76,7 @@ class TransportAgent(BaseAgent):
 
         reasoning = (
             f"Computed {len(transport_legs)} transport leg(s) via MCP calculate_distance "
-            f"using mode='{mode}'. Total transit: {total_minutes} min, ₹{total_cost}."
+            f"using mode='{mode}'. Total transit: {total_minutes} min, Rs.{total_cost}."
         )
 
         details = {

@@ -54,6 +54,7 @@ const formatItineraryResponse = (itineraries, tripId) => {
         image,
         cost: act.cost,
         location: act.location,
+        status: act.status || "Pending",
         transportDetails: act.transportDetails,
       };
     });

@@ -31,6 +31,52 @@ class CompanionAgent(BaseAgent):
         import json
         from ai_service.services.llm_service import llm_service
 
+        # ── Weather Query Interception ──────────────────────────────────────────
+        is_weather_query = any(w in user_message.lower() for w in ["weather", "temperature", "temp", "rain", "forecast", "climate", "degree", "cold", "hot"])
+        
+        weather_context = ""
+        if is_weather_query:
+            # 1. Ask the LLM to extract the city name from the message, defaulting to trip.destination
+            try:
+                extract_instruction = (
+                    "You are a location extraction utility. Read the user message and extract the name of the city "
+                    "or location they are asking about. Return ONLY the city/location name, capitalized, with no other text, punctuation, or explanation. "
+                    f"If they do not mention a specific city or location, return exactly '{trip.destination}'."
+                )
+                extracted_city = await llm_service.generate_response(
+                    prompt=f"User Message: \"{user_message}\"",
+                    system_instruction=extract_instruction,
+                    structured_json=False
+                )
+                target_city = extracted_city.strip().strip('"').strip("'")
+                if not target_city:
+                    target_city = trip.destination
+            except Exception:
+                target_city = trip.destination
+
+            # 2. Invoke check_weather MCP tool for the extracted city
+            try:
+                date_str = trip.startDate.split("T")[0] if isinstance(trip.startDate, str) else trip.startDate.strftime("%Y-%m-%d")
+            except Exception:
+                import datetime
+                date_str = datetime.date.today().strftime("%Y-%m-%d")
+                
+            try:
+                weather_data = await mcp_client.call_tool("check_weather", {
+                    "location": target_city,
+                    "date": date_str
+                })
+            except Exception as e:
+                weather_data = {"error": str(e), "message": "Failed to fetch live weather details."}
+
+            weather_context = f"""
+            The user is asking about the weather. We have fetched the real-time weather details for {target_city}:
+            {json.dumps(weather_data, indent=2)}
+            
+            Based on this weather data, formulate a friendly reply detailing the weather (temperature, conditions, baseline comparison, and abnormal alerts if any).
+            IMPORTANT: Since the user is just asking for a weather update, do NOT propose any itinerary changes (set "hasSuggestion" to false and "suggestion" to null).
+            """
+
         rejected_prompt = ""
         if rejected_suggestions:
             rejected_prompt = "Previously REJECTED Plan Modifications:\n"
@@ -54,6 +100,8 @@ User Message: "{user_message}"
 
 Current Itinerary Activities:
 {json.dumps(activities, indent=2)}
+
+{weather_context}
 
 Determine if the user is asking to modify their itinerary (e.g., cancel a stop, move an activity to another day/time, or insert a new activity).
 If they are, set "hasSuggestion" to true and populate the "suggestion" object conforming to the schema below.

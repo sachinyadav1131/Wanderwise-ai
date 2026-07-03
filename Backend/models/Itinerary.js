@@ -38,6 +38,7 @@ const itinerarySchema = new mongoose.Schema(
         ref: "FoodSuggestion",
       },
     ],
+
   },
   {
     timestamps: true,

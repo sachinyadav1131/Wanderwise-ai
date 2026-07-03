@@ -59,6 +59,9 @@ class WeatherResult(BaseModel):
     temperature_celsius: float
     wind_kmh: float
     advisory: Optional[str] = None       # e.g. "Carry umbrella", "Avoid outdoor"
+    past_temperatures: list[float] = Field(default_factory=list)
+    has_abnormal_alert: bool = False
+    anomaly_reasoning: Optional[str] = None
 
 class HotelOption(BaseModel):
     """Single hotel entry returned by find_hotels."""

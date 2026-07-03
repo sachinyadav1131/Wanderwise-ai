@@ -9,6 +9,7 @@ import chatRoutes from "./routes/chatRoutes.js";
 import suggestionRoutes from "./routes/suggestionRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import agentLogRoutes from "./routes/agentLogRoutes.js";
+import weatherRoutes from "./routes/weatherRoutes.js";
 import { errorMiddleware } from "./middleware/errorMiddleware.js";
 
 export const app = express();
@@ -33,6 +34,7 @@ app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/suggestions", suggestionRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/agent-logs", agentLogRoutes);
+app.use("/api/v1/weather", weatherRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({

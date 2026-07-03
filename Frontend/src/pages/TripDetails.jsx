@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { fetchTripById, updateTripStatus, deleteTrip } from "../store/slices/tripSlice";
 import { fetchItinerary } from "../store/slices/itinerarySlice";
+import { setActiveSuggestion } from "../store/slices/suggestionSlice";
 import TripChatbot from "../components/TripChatbot";
 import ActivityChecklist from "../components/ActivityChecklist";
 
@@ -161,7 +162,7 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
             <span className="text-xs font-semibold text-indigo-600">{data.timing}</span>
           </div>
           {tripStatus === "Started" && data.cost > 0 && (
-            <span className="text-xs font-extrabold text-gray-600 bg-gray-100 border border-gray-200 px-2.5 py-0.5 rounded-lg shadow-sm">
+            <span className="text-xs font-extrabold text-gray-600 bg-gray-150 px-2.5 py-0.5 rounded-lg shadow-sm">
               ₹{data.cost}
             </span>
           )}
@@ -170,6 +171,8 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
         {/* Checklist */}
         <ActivityChecklist
           activityId={activityId}
+          dbId={data._id}
+          initialStatus={data.status}
           label="Mark as visited"
           disabled={tripStatus !== "Started"}
         />

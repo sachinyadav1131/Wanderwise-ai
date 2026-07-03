@@ -1,20 +1,67 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleActivity } from "../store/slices/activitySlice";
+import axios from "axios";
+import { fetchItinerary } from "../store/slices/itinerarySlice";
+import { setActiveSuggestion } from "../store/slices/suggestionSlice";
+
+// Helper to find the next scheduled activity in chronological order
+const findNextActivity = (itinerary, currentActivityId) => {
+  if (!itinerary || !itinerary.days) return null;
+  
+  const match = currentActivityId.match(/^day(\d+)-(.+)$/);
+  if (!match) return null;
+  
+  const dayNum = parseInt(match[1], 10);
+  const slotName = match[2].toLowerCase(); // "morning", "afternoon", or "evening"
+  
+  const day = itinerary.days.find((d) => d.day === dayNum);
+  if (!day) return null;
+  
+  const slotsOrder = ["morning", "afternoon", "evening"];
+  const currentIndex = slotsOrder.indexOf(slotName);
+  if (currentIndex === -1) return null;
+  
+  // Check subsequent slots on same day
+  for (let idx = currentIndex + 1; idx < slotsOrder.length; idx++) {
+    const nextSlot = slotsOrder[idx];
+    const capitalizedSlot = nextSlot.charAt(0).toUpperCase() + nextSlot.slice(1);
+    const act = day.slots?.[capitalizedSlot];
+    if (act) return act;
+  }
+  
+  // Check subsequent days starting from morning
+  const sortedDays = [...itinerary.days].sort((a, b) => a.day - b.day);
+  const nextDays = sortedDays.filter((d) => d.day > dayNum);
+  
+  for (const nextDay of nextDays) {
+    for (const nextSlot of slotsOrder) {
+      const capitalizedSlot = nextSlot.charAt(0).toUpperCase() + nextSlot.slice(1);
+      const act = nextDay.slots?.[capitalizedSlot];
+      if (act) return act;
+    }
+  }
+  
+  return null;
+};
 
 /**
  * ActivityChecklist
  * Props:
- *   activityId  – unique string key  (e.g., "day1-morning")
- *   label       – activity title text
- *   timing      – optional time string
- *   description – optional short description
+ *   activityId    – unique slot key  (e.g., "day1-morning")
+ *   dbId          – MongoDB ID of this activity
+ *   initialStatus – MongoDB status ("Pending" or "Completed")
+ *   label         – activity title text
+ *   timing        – optional time string
+ *   description   – optional short description
+ *   disabled      – boolean
  */
-export default function ActivityChecklist({ activityId, label, timing, description, disabled }) {
+export default function ActivityChecklist({ activityId, dbId, initialStatus, label, timing, description, disabled }) {
   const dispatch = useDispatch();
-  const isComplete = useSelector(
-    (state) => !!state.activity.completedActivities[activityId]
-  );
+  
+  const itinerary = useSelector((state) => state.itinerary.itinerary);
+  const activeTrip = useSelector((state) => state.trips.activeTrip);
+  
+  const isComplete = initialStatus === "Completed";
 
   const containerClasses = `w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${
     isComplete
@@ -26,9 +73,54 @@ export default function ActivityChecklist({ activityId, label, timing, descripti
       : "group hover:border-indigo-300 hover:bg-indigo-50/40 cursor-pointer"
   }`;
 
-  const handleClick = () => {
-    if (!disabled) {
-      dispatch(toggleActivity(activityId));
+  const handleClick = async () => {
+    console.log("ActivityChecklist clicked:", { activityId, dbId, isComplete, label });
+    if (!disabled && dbId && activeTrip) {
+      const nextStatus = isComplete ? "Pending" : "Completed";
+      try {
+        console.log(`Sending PATCH request to set status to ${nextStatus}...`);
+        await axios.patch(`/api/v1/activities/${dbId}/status`, { status: nextStatus });
+        
+        console.log("Refetching itinerary...");
+        await dispatch(fetchItinerary(activeTrip._id));
+        
+        if (nextStatus === "Completed" && itinerary) {
+          console.log("Finding next activity...");
+          const nextAct = findNextActivity(itinerary, activityId);
+          console.log("Next activity found:", nextAct);
+          
+          if (nextAct && nextAct.location) {
+            const match = activityId.match(/^day(\d+)-/);
+            const dayNum = match ? parseInt(match[1], 10) : 1;
+            const dayData = itinerary.days?.find((d) => d.day === dayNum);
+            
+            let dateStr = activeTrip.startDate;
+            if (dayData && dayData.date) {
+              dateStr = new Date(dayData.date).toISOString().split("T")[0];
+            } else if (activeTrip.startDate) {
+              dateStr = new Date(activeTrip.startDate).toISOString().split("T")[0];
+            }
+            
+            console.log(`Triggering weather check for: ${nextAct.activity} at ${nextAct.location} on ${dateStr}`);
+            const response = await axios.post(
+              `/api/v1/weather/check/${activeTrip._id}?location=${encodeURIComponent(nextAct.location)}&date=${dateStr}`
+            );
+            
+            console.log("Weather check response:", response.data);
+            
+            if (response.data?.success && response.data?.alert && response.data?.suggestion) {
+              console.log("Alert triggered! Setting active suggestion in Redux:", response.data.suggestion);
+              dispatch(setActiveSuggestion(response.data.suggestion));
+            } else {
+              console.log("No alert triggered. response.data.alert:", response.data?.alert);
+            }
+          } else {
+            console.log("No upcoming activity or location found.");
+          }
+        }
+      } catch (err) {
+        console.error("Activity completion toggle or weather check failed:", err.message);
+      }
     }
   };
 

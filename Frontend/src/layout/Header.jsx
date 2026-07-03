@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { logoutUser } from "../store/slices/authSlice";
 import ProfileModal from "../popups/ProfileModal";
 
-export default function Header() {
+export default function Header({ onToggleSidebar }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -25,6 +25,19 @@ export default function Header() {
   return (
     <>
       <header className="h-16 bg-white border-b border-gray-150 flex items-center justify-between px-6 sm:px-8 sticky top-0 z-30 shadow-sm">
+        {/* Mobile Sidebar toggle 3-dot button */}
+        <button
+          onClick={onToggleSidebar}
+          className="p-2 -ml-2 mr-2 rounded-xl text-gray-500 hover:text-gray-700 hover:bg-gray-100 md:hidden transition-all cursor-pointer flex items-center justify-center shrink-0"
+          id="header-sidebar-toggle-btn"
+        >
+          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
+          </svg>
+        </button>
+
         {/* Search Bar Container */}
         <div className="flex-1 max-w-md hidden sm:block">
           <div className="relative">
