@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
@@ -124,50 +124,70 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
   return (
     <div
       id={`activity-${activityId}`}
-      className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
+      className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm flex flex-col justify-between"
     >
-      {/* Photo */}
-      <div className="relative h-36 overflow-hidden group">
-        <img
-          src={currentImage}
-          alt={data.activity}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          onError={(e) => {
-            e.target.src = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&auto=format&fit=crop";
-          }}
-        />
-        {/* Slot badge */}
-        <div className="absolute top-2 left-2">
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${meta.color}`}>
-            {meta.icon} {slot}
-          </span>
+      <div>
+        {/* Photo */}
+        <div className="relative h-36 overflow-hidden group">
+          <img
+            src={currentImage}
+            alt={data.activity}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={(e) => {
+              e.target.src = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&auto=format&fit=crop";
+            }}
+          />
+          {/* Slot badge */}
+          <div className="absolute top-2 left-2">
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${meta.color}`}>
+              {meta.icon} {slot}
+            </span>
+          </div>
         </div>
 
+        {/* Content */}
+        <div className="p-5">
+          <h4 className="font-bold text-gray-900 text-sm mb-2" style={{ fontFamily: "var(--font-display)" }}>
+            {data.activity}
+          </h4>
+          <p className="text-xs text-gray-500 leading-relaxed mb-3">{data.description}</p>
+
+          {/* AI Rationale Tag */}
+          {data.rationale && (
+            <div className="mb-3 bg-indigo-50/70 border border-indigo-100 rounded-xl p-2.5">
+              <p className="text-[11px] font-medium text-indigo-800 leading-snug">
+                💡 <span className="font-bold">Why AI picked this:</span> {data.rationale}
+              </p>
+            </div>
+          )}
+
+          {/* Travel Leg Pill */}
+          {data.transportDetails && data.transportDetails.mode && data.transportDetails.mode !== "None" && (
+            <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg w-fit">
+              <span>{data.transportDetails.mode === "Cab" ? "🚗" : "🚶"}</span>
+              <span>{data.transportDetails.duration || "15 min"} {data.transportDetails.routeDistance ? `(${data.transportDetails.routeDistance})` : ""}</span>
+            </div>
+          )}
+
+          {/* Timing chip & Cost tag */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-xs font-semibold text-indigo-600">{data.timing}</span>
+            </div>
+            {tripStatus === "Started" && data.cost > 0 && (
+              <span className="text-xs font-extrabold text-gray-600 bg-gray-150 px-2.5 py-0.5 rounded-lg shadow-sm">
+                ₹{data.cost}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="p-5.5">
-        <h4 className="font-bold text-gray-900 text-sm mb-6" style={{ fontFamily: "var(--font-display)" }}>
-          {data.activity}
-        </h4>
-        <p className="text-xs text-gray-500 leading-relaxed mb-6">{data.description}</p>
-
-        {/* Timing chip & Cost tag */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-xs font-semibold text-indigo-600">{data.timing}</span>
-          </div>
-          {tripStatus === "Started" && data.cost > 0 && (
-            <span className="text-xs font-extrabold text-gray-600 bg-gray-150 px-2.5 py-0.5 rounded-lg shadow-sm">
-              ₹{data.cost}
-            </span>
-          )}
-        </div>
-
+      <div className="p-5 pt-0">
         {/* Checklist */}
         <ActivityChecklist
           activityId={activityId}
@@ -184,12 +204,15 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
 // ─── Day Block ────────────────────────────────────────────────────────────────
 function DayBlock({ day, tripStatus }) {
   const [expanded, setExpanded] = useState(true);
+  const activities = day.activitiesList && day.activitiesList.length > 0 
+    ? day.activitiesList 
+    : ["Morning", "Afternoon", "Evening"].map((slot) => day.slots[slot]).filter(Boolean);
 
   return (
-    <div id={`day-block-${day.day}`} className="mb-24 pb-12 border-b border-gray-100/70 last:border-b-0 last:mb-0 last:pb-0">
+    <div id={`day-block-${day.day}`} className="mb-16 pb-12 border-b border-gray-100/70 last:border-b-0 last:mb-0 last:pb-0">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center justify-between w-full mb-7 group"
+        className="flex items-center justify-between w-full mb-7 group cursor-pointer"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl gradient-brand flex items-center justify-center text-white font-extrabold text-sm shadow-md">
@@ -212,15 +235,148 @@ function DayBlock({ day, tripStatus }) {
 
       {/* Slot grid */}
       {expanded && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-fade-in">
-          {["Morning", "Afternoon", "Evening"].map(
-            (slot) =>
-              day.slots[slot] && (
-                <ActivitySlotCard key={slot} dayNum={day.day} slot={slot} data={day.slots[slot]} tripStatus={tripStatus} />
-              )
+        <div className="space-y-8 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {activities.map((actData, idx) => (
+              <ActivitySlotCard
+                key={actData._id || idx}
+                dayNum={day.day}
+                slot={actData.timeSlot || ["Morning", "Afternoon", "Evening"][idx % 3]}
+                data={actData}
+                tripStatus={tripStatus}
+              />
+            ))}
+          </div>
+
+          {/* Daily Meal Suggestions */}
+          {day.foodSuggestions && day.foodSuggestions.length > 0 && (
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-5 mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-base">🍽️</span>
+                <h4 className="text-sm font-bold text-amber-900">Curated Meal Recommendations</h4>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {day.foodSuggestions.map((meal, idx) => (
+                  <div key={idx} className="bg-white rounded-xl border border-amber-200/60 p-4 shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                          {meal.mealType || "Meal"}
+                        </span>
+                        {meal.averagePrice > 0 && (
+                          <span className="text-xs font-bold text-gray-600">~₹{meal.averagePrice}</span>
+                        )}
+                      </div>
+                      <p className="text-sm font-bold text-gray-900 line-clamp-1">{meal.restaurantName}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{meal.cuisineType} · {meal.location || meal.nearPlace}</p>
+                    </div>
+                    {meal.rationale && (
+                      <p className="text-[11px] text-amber-800/90 mt-2 bg-amber-50 p-2 rounded-lg leading-snug">
+                        💡 {meal.rationale}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PlannerCard({ title, body, accent }) {
+  return (
+    <div className={`rounded-2xl border p-4 ${accent}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide mb-2">{title}</p>
+      <p className="text-sm font-medium text-gray-700">{body}</p>
+    </div>
+  );
+}
+
+function PlannerTimeline({ schedule, budgetTarget, expensesSummary }) {
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0);
+  const daysList = schedule && schedule.length > 0 ? schedule : [];
+  const currentDaySchedule = daysList[selectedDayIdx] || daysList[0];
+  const items = currentDaySchedule?.items || [];
+  const budgetPercent = Math.min(100, Math.round(((expensesSummary?.total_spent || 0) / Math.max(budgetTarget || 1, 1)) * 100));
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-indigo-100 bg-indigo-50/50 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-semibold text-indigo-700">Trip budget</p>
+            <p className="text-xs text-indigo-600">Live progress against your target</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-bold text-indigo-700">₹{expensesSummary?.total_spent || 0} / ₹{budgetTarget || 0}</p>
+            <p className="text-xs text-indigo-600">{budgetPercent}% used</p>
+          </div>
+        </div>
+        <div className="h-3 rounded-full bg-white overflow-hidden">
+          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${budgetPercent}%` }} />
+        </div>
+      </div>
+
+      {/* Multi-Day Selector Tabs */}
+      {daysList.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          {daysList.map((dayData, idx) => (
+            <button
+              key={idx}
+              onClick={() => setSelectedDayIdx(idx)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                selectedDayIdx === idx
+                  ? "bg-indigo-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Day {dayData.day || idx + 1}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="relative ml-3 border-l-2 border-indigo-100 pl-6 space-y-4">
+        {items.map((item, index) => (
+          <div key={`${item.type}-${index}`} className="relative">
+            <div className="absolute -left-[1.5rem] top-2 h-4 w-4 rounded-full border-4 border-white bg-indigo-500" />
+            {item.type === "transit" ? (
+              <div className="rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-medium text-slate-700 inline-flex items-center gap-2 shadow-xs">
+                {item.mode === "Cab" ? "🚗" : item.mode === "Walking" ? "🚶" : "🛣️"} {item.name}: {item.durationMinutes} min {item.distanceKm > 0 ? `· ${item.distanceKm} km` : ""} · {item.mode}
+              </div>
+            ) : item.type === "lunch" ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">🍱 {item.name || "Lunch Break"}</p>
+                    <p className="text-xs text-amber-700">{item.startTime} – {item.endTime}</p>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                    🕒 {item.durationMinutes} min
+                  </span>
+                </div>
+                {item.note && <p className="mt-1.5 text-xs text-amber-800/80">{item.note}</p>}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{item.name}</p>
+                    <p className="text-xs text-gray-500">{item.startTime} – {item.endTime} {item.location ? `· 📍 ${item.location}` : ""}</p>
+                  </div>
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 whitespace-nowrap">
+                    🕒 {item.durationMinutes} min
+                  </span>
+                </div>
+                {item.note && <p className="mt-2 text-xs text-gray-600 leading-relaxed">{item.note}</p>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -237,6 +393,10 @@ export default function TripDetails() {
   const trip = useSelector((state) => state.trips.activeTrip);
   const trips = useSelector((state) => state.trips.trips);
   const { itinerary, loading } = useSelector((state) => state.itinerary);
+  const [plannerSchedule, setPlannerSchedule] = useState(null);
+  const [plannerLoading, setPlannerLoading] = useState(false);
+  const [routeSelectionLoading, setRouteSelectionLoading] = useState(false);
+  const [expenseSummary, setExpenseSummary] = useState(null);
 
   useEffect(() => {
     dispatch(fetchTripById(tripId));
@@ -244,15 +404,41 @@ export default function TripDetails() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [tripId, dispatch]);
 
-  const handleUpdateStatus = (newStatus) => {
+  useEffect(() => {
+    if (!tripId) return;
+    const loadExpenseSummary = async () => {
+      try {
+        const res = await axios.get(`/api/v1/trips/${tripId}/expenses/summary`);
+        setExpenseSummary(res.data?.data || null);
+      } catch (err) {
+        console.error("Failed to load expense summary", err);
+      }
+    };
+    loadExpenseSummary();
+  }, [tripId, trip?.status]);
+
+  const handleUpdateStatus = async (newStatus) => {
     if (newStatus === "Started") {
       const hasActive = trips.some((t) => t.status === "Started" && t._id !== tripId);
       if (hasActive) {
         alert("You already have an active live trip. Please complete it first before starting another one!");
         return;
       }
+      setPlannerLoading(true);
+      try {
+        const res = await axios.post(`/api/v1/trips/${tripId}/start`);
+        setPlannerSchedule(res.data?.data?.schedule || null);
+        dispatch(fetchTripById(tripId));
+      } catch (err) {
+        console.error("Failed to start trip", err);
+        alert("Could not start the trip right now.");
+      } finally {
+        setPlannerLoading(false);
+      }
     }
-    dispatch(updateTripStatus({ tripId, status: newStatus }));
+    if (newStatus !== "Started") {
+      dispatch(updateTripStatus({ tripId, status: newStatus }));
+    }
   };
 
   const handleDeleteTrip = async () => {
@@ -264,7 +450,26 @@ export default function TripDetails() {
     }
   };
 
+  const handleRouteSelection = async (optionId) => {
+    setRouteSelectionLoading(true);
+    try {
+      await axios.patch(`/api/v1/trips/${tripId}/route-option`, { optionId });
+      await Promise.all([dispatch(fetchTripById(tripId)), dispatch(fetchItinerary(tripId))]);
+    } catch (err) {
+      console.error("Failed to select route option", err);
+      alert(err.response?.data?.message || "Could not apply this route option.");
+    } finally {
+      setRouteSelectionLoading(false);
+    }
+  };
+
   const destinationData = itinerary || {};
+  const budgetTarget = trip?.budgetTarget || trip?.budget || trip?.totalBudget || 0;
+  const plannerSummary = useMemo(() => ({
+    totalSpent: expenseSummary?.total_spent || 0,
+    plannedBudget: expenseSummary?.planned_budget || budgetTarget,
+    remainingBudget: expenseSummary?.remaining_budget || Math.max(budgetTarget - (expenseSummary?.total_spent || 0), 0),
+  }), [expenseSummary, budgetTarget]);
   const heroImage =
     trip?.coverImage ||
     "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1200&auto=format&fit=crop";
@@ -334,9 +539,10 @@ export default function TripDetails() {
             <div className="flex items-center gap-3 self-start sm:self-auto">
               <button
                 onClick={() => handleUpdateStatus("Started")}
-                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+                disabled={plannerLoading}
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-70"
               >
-                🚀 Start Trip
+                {plannerLoading ? "⏳ Starting…" : "🚀 Start Trip"}
               </button>
               <button
                 onClick={handleDeleteTrip}
@@ -391,58 +597,53 @@ export default function TripDetails() {
             <p className="text-gray-400 text-sm font-medium">Building your itinerary…</p>
           </div>
         ) : trip?.status === "Planned" ? (
-          /* Minimal plain-text schedule view for Upcoming Trips */
-          <div 
-            className="bg-white rounded-3xl border border-gray-150 shadow-sm max-w-4xl mx-auto mb-10"
-            style={{ padding: "2.5rem" }}
-          >
+          <div className="bg-white rounded-3xl border border-gray-150 shadow-sm max-w-5xl mx-auto mb-10 p-8 sm:p-10">
             <div className="mb-8 pb-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Upcoming Trip Overview</h2>
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">High-Level Schedule Overview</p>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Dynamic trip planner</h2>
+              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Your upcoming trip is in a bucket-list view. Start it to unlock the optimized timeline.</p>
             </div>
 
-            {/* Stays info */}
-            {destinationData.hotels && destinationData.hotels.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-3 mb-8">
+              <PlannerCard title="Best time" body="We’ll suggest ideal visit windows before sequencing your day." accent="bg-amber-50 border-amber-100" />
+              <PlannerCard title="Duration" body="Each stop will keep its estimated visit length and pacing." accent="bg-cyan-50 border-cyan-100" />
+              <PlannerCard title="Opening hours" body="We’ll keep the plan within the available windows and lunch breaks." accent="bg-indigo-50 border-indigo-100" />
+            </div>
+
+            {trip?.routeAlternatives?.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                  🏨 Stays Recommended:
-                </h3>
-                <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1.5">
-                  {destinationData.hotels.map((hotel) => (
-                    <li key={hotel._id || hotel.name}>
-                      <span className="font-semibold text-gray-850">{hotel.name}</span> - {hotel.location} (₹{hotel.pricePerNight}/night)
-                    </li>
-                  ))}
-                </ul>
+                <h3 className="font-bold text-gray-800">Choose your hotel starting point</h3>
+                <p className="text-xs text-gray-500 mt-1 mb-4">Each route visits the same attractions using nearest-neighbour + 2-opt ordering. Select the hotel whose round-trip estimate works best for you.</p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {trip.routeAlternatives.map((option) => {
+                    const selected = trip.selectedRouteAlternative === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => handleRouteSelection(option.id)}
+                        disabled={routeSelectionLoading || selected}
+                        className={`rounded-2xl border p-4 text-left transition ${selected ? "border-indigo-500 bg-indigo-50" : "border-gray-200 bg-white hover:border-indigo-300"}`}
+                      >
+                        <p className="font-bold text-sm text-gray-900">{option.hotel?.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">{option.hotel?.address || option.hotel?.distanceFromRoute || "City centre"}</p>
+                        <p className="text-sm font-extrabold text-indigo-600 mt-3">~{option.estimatedDistanceKm} km</p>
+                        <p className="text-xs text-gray-500">estimated round trip</p>
+                        <p className="text-xs font-semibold mt-3 text-indigo-700">{selected ? "Selected" : "Use this route"}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {/* Days list in plain text */}
-            <div className="space-y-8">
-              <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                🗺️ Daily Timeline:
-              </h3>
-              {destinationData.days?.map((d) => (
-                <div key={d.day} className="relative pl-6 border-l-2 border-indigo-100 last:border-l-0 pb-6 last:pb-0">
-                  {/* Dot indicator */}
-                  <div className="absolute left-[-6px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                  <h4 className="text-base font-bold text-gray-800 mb-2">
-                    {d.title?.toLowerCase().startsWith("day") ? d.title : `Day ${d.day}: ${d.title}`}
-                  </h4>
-                  <ul className="space-y-2 text-sm text-gray-600 pl-2">
-                    {Object.entries(d.slots).map(([slotName, slotData]) => (
-                      <li key={slotName} className="flex flex-col sm:flex-row sm:items-baseline gap-1">
-                        <span className="font-bold text-xs uppercase tracking-wider text-indigo-500 min-w-[90px]">
-                          {slotName} ({slotData.timing}):
-                        </span>
-                        <span>
-                          {slotData.activity} - <span className="text-gray-400 text-xs">{slotData.description}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+            <div className="rounded-3xl border border-dashed border-indigo-200 bg-indigo-50/40 p-6 text-center">
+              <p className="text-sm font-semibold text-indigo-700">Ready to start your optimized day?</p>
+              <button
+                onClick={() => handleUpdateStatus("Started")}
+                disabled={plannerLoading}
+                className="mt-4 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-70"
+              >
+                {plannerLoading ? "⏳ Preparing timeline…" : "Start Trip"}
+              </button>
             </div>
           </div>
         ) : (
@@ -476,6 +677,48 @@ export default function TripDetails() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {trip?.status === "Started" && (
+              <section className="mb-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-2xl font-extrabold text-gray-900" style={{ fontFamily: "var(--font-display)" }}>Optimized day plan</h2>
+                    <p className="text-gray-500 text-xs mt-0.5">A proximity-first timeline with transit caps and a lunch break.</p>
+                  </div>
+                  <div className="rounded-2xl bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">
+                    Budget left: ₹{plannerSummary.remainingBudget}
+                  </div>
+                </div>
+                {plannerSchedule ? (
+                  <PlannerTimeline schedule={plannerSchedule} budgetTarget={budgetTarget} expensesSummary={expenseSummary} />
+                ) : (
+                  <div className="rounded-3xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
+                    Start the trip to generate the live timeline view.
+                  </div>
+                )}
+              </section>
+            )}
+
+            {trip?.status === "Completed" && expenseSummary && (
+              <section className="mb-10 rounded-3xl border border-emerald-100 bg-emerald-50/70 p-6">
+                <h2 className="text-xl font-extrabold text-emerald-900">Post-trip expense summary</h2>
+                <p className="text-sm text-emerald-700 mt-1">Your final spend and category split.</p>
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl bg-white p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Total spent</p>
+                    <p className="text-lg font-bold text-gray-900">₹{expenseSummary.total_spent}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Planned budget</p>
+                    <p className="text-lg font-bold text-gray-900">₹{expenseSummary.planned_budget}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white p-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Remaining</p>
+                    <p className="text-lg font-bold text-gray-900">₹{expenseSummary.remaining_budget}</p>
+                  </div>
+                </div>
+              </section>
             )}
 
             {/* ── Hotel Recommendations ─────────────────────────────────────── */}

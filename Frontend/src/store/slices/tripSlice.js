@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
+axios.defaults.withCredentials = true;
+
 // ─── Async Thunks ────────────────────────────────────────────────────────────
 const formatTripData = (trip) => {
   if (!trip) return null;

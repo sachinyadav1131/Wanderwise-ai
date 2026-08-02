@@ -50,12 +50,36 @@ const formatItineraryResponse = (itineraries, tripId) => {
         _id: act._id,
         activity: act.title,
         description: act.description,
+        rationale: act.rationale || "",
         timing: act.time || "Flexible",
         image,
         cost: act.cost,
         location: act.location,
         status: act.status || "Pending",
         transportDetails: act.transportDetails,
+        timeSlot: act.timeSlot,
+        estimatedDuration: act.estimatedDuration,
+      };
+    });
+
+    const activitiesList = (dayItin.activities || []).map((act) => {
+      let image = act.image;
+      if (!image || image.includes("photo-1507525428034-b723cf961d3e")) {
+        image = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&auto=format&fit=crop";
+      }
+      return {
+        _id: act._id,
+        activity: act.title,
+        description: act.description,
+        rationale: act.rationale || "",
+        timing: act.time || "Flexible",
+        image,
+        cost: act.cost,
+        location: act.location,
+        status: act.status || "Pending",
+        transportDetails: act.transportDetails,
+        timeSlot: act.timeSlot || "Morning",
+        estimatedDuration: act.estimatedDuration,
       };
     });
 
@@ -63,6 +87,9 @@ const formatItineraryResponse = (itineraries, tripId) => {
       day: dayItin.dayNumber,
       title: dayItin.summary || `Day ${dayItin.dayNumber}`,
       slots,
+      activitiesList,
+      foodSuggestions: dayItin.foodSuggestions || [],
+      staySuggestion: dayItin.staySuggestion || null,
     };
   });
 

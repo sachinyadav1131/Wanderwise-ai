@@ -116,10 +116,13 @@ export default function CreateTrip() {
     duration: "",
     budget: "",
     companions: "",
+    budgetTarget: "",
+    travelerCount: "2",
+    exclusions: "",
   });
   const [errors, setErrors] = useState({});
 
-  const TOTAL_STEPS = 3;
+  const TOTAL_STEPS = 4;
 
   // Validation per step
   const validate = () => {
@@ -133,6 +136,10 @@ export default function CreateTrip() {
     }
     if (step === 1 && !form.budget) newErrors.budget = "Please select a budget tier.";
     if (step === 2 && !form.companions) newErrors.companions = "Please select who's coming.";
+    if (step === 3) {
+      if (!form.budgetTarget || Number(form.budgetTarget) < 1) newErrors.budgetTarget = "Enter a valid budget target.";
+      if (!form.travelerCount || Number(form.travelerCount) < 1) newErrors.travelerCount = "Enter at least one traveler.";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -145,9 +152,22 @@ export default function CreateTrip() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    const result = await dispatch(createTrip(form));
+    const payload = {
+      ...form,
+      totalBudget: Number(form.budgetTarget || 0),
+      budget: form.budget,
+      travelers: Number(form.travelerCount || 1),
+      travelerCount: Number(form.travelerCount || 1),
+      exclusions: form.exclusions.split(/\n|,|;/).map((item) => item.trim()).filter(Boolean),
+    };
+    const result = await dispatch(createTrip(payload));
     if (createTrip.fulfilled.match(result)) {
-      navigate("/dashboard");
+      const createdTripId = result.payload?._id;
+      if (createdTripId) {
+        navigate(`/trip/${createdTripId}`);
+      } else {
+        navigate("/dashboard");
+      }
     }
   };
 
@@ -155,6 +175,7 @@ export default function CreateTrip() {
     { title: "Where to?", subtitle: "Tell us your destination and how long you're going." },
     { title: "What's your budget?", subtitle: "We'll tailor recommendations to your spending comfort." },
     { title: "Who's joining?", subtitle: "So we can optimise activities for your travel group." },
+    { title: "Fine-tune your trip", subtitle: "Add your ideal budget target, traveler count, and custom preferences." },
   ];
 
   return (
@@ -267,6 +288,56 @@ export default function CreateTrip() {
             </div>
           )}
 
+          {/* ── Step 3: Budget + Travelers + Notes ───────────────────────── */}
+          {step === 3 && (
+            <div className="space-y-5 animate-fade-in">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="budget-target-input">
+                  Budget target (₹)
+                </label>
+                <input
+                  id="budget-target-input"
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 20000"
+                  value={form.budgetTarget}
+                  onChange={(e) => setForm({ ...form, budgetTarget: e.target.value })}
+                  className={`w-full px-4 py-3.5 rounded-xl border text-gray-900 placeholder-gray-400 text-sm font-medium outline-none transition-all ${errors.budgetTarget ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"}`}
+                />
+                {errors.budgetTarget && <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.budgetTarget}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="traveler-count-input">
+                  Traveler count
+                </label>
+                <input
+                  id="traveler-count-input"
+                  type="number"
+                  min="1"
+                  value={form.travelerCount}
+                  onChange={(e) => setForm({ ...form, travelerCount: e.target.value })}
+                  className={`w-full px-4 py-3.5 rounded-xl border text-gray-900 placeholder-gray-400 text-sm font-medium outline-none transition-all ${errors.travelerCount ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"}`}
+                />
+                {errors.travelerCount && <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.travelerCount}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5" htmlFor="exclusions-textarea">
+                  Custom prompt / exclusions
+                </label>
+                <textarea
+                  id="exclusions-textarea"
+                  rows="4"
+                  placeholder="e.g. avoid crowded markets, prefer quiet temples, skip Red Fort"
+                  value={form.exclusions}
+                  onChange={(e) => setForm({ ...form, exclusions: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 text-sm font-medium outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+            </div>
+          )}
+
           {/* ── Navigation Buttons ──────────────────────────────────────────── */}
           <div className="flex items-center justify-between mt-8 gap-4">
             <button
@@ -330,6 +401,16 @@ export default function CreateTrip() {
             {form.companions && (
               <span className="text-xs font-semibold px-3 py-1 bg-white border border-teal-100 text-teal-700 rounded-full shadow-sm">
                 👥 {form.companions}
+              </span>
+            )}
+            {form.budgetTarget && (
+              <span className="text-xs font-semibold px-3 py-1 bg-white border border-amber-100 text-amber-700 rounded-full shadow-sm">
+                💸 ₹{form.budgetTarget}
+              </span>
+            )}
+            {form.travelerCount && (
+              <span className="text-xs font-semibold px-3 py-1 bg-white border border-cyan-100 text-cyan-700 rounded-full shadow-sm">
+                🧳 {form.travelerCount} traveler{Number(form.travelerCount) > 1 ? "s" : ""}
               </span>
             )}
           </div>
