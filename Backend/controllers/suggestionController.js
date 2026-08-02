@@ -53,7 +53,7 @@ export const approveSuggestion = asyncHandler(async (req, res, next) => {
   let suggestion = await ChangeSuggestion.findOneAndUpdate(
     { _id: suggestionId, status: "Pending", expiresAt: { $gt: new Date() } },
     { $set: { status: "Processing" } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   // If transition failed, check if suggestion was already processed, expired, or locked

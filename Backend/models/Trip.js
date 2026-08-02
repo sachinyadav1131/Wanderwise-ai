@@ -25,10 +25,37 @@ const tripSchema = new mongoose.Schema(
       required: [true, "Total budget is required."],
       min: [0, "Budget cannot be negative."],
     },
+    budget: {
+      type: String,
+      default: "Moderate",
+      trim: true,
+    },
+    budgetTarget: {
+      type: Number,
+      default: null,
+      min: [0, "Budget target cannot be negative."],
+    },
     travelers: {
       type: Number,
       default: 1,
       min: [1, "Number of travelers must be at least 1."],
+    },
+    travelerCount: {
+      type: Number,
+      default: 1,
+      min: [1, "Number of travelers must be at least 1."],
+    },
+    exclusions: {
+      type: mongoose.Schema.Types.Mixed,
+      default: [],
+    },
+    routeAlternatives: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    selectedRouteAlternative: {
+      type: String,
+      default: null,
     },
     foodPreference: {
       type: String,
@@ -61,7 +88,7 @@ const tripSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Draft", "Planned", "Started", "Completed"],
-      default: "Draft", // Sets to Draft upon basic initialization
+      default: "Planned",
     },
   },
   {

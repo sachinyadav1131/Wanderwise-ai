@@ -126,6 +126,7 @@ export const generateItinerary = asyncHandler(async (req, res, next) => {
         location: actData.location || trip.destination,
         cost: actData.cost || 0,
         estimatedDuration: actData.estimatedDuration || 60,
+        rationale: actData.rationale || "",
         transportDetails: actData.transportDetails || { mode: "None" },
         isAlternative: actData.isAlternative || false,
       });

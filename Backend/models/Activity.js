@@ -32,7 +32,6 @@ const activitySchema = new mongoose.Schema(
     timeSlot: {
       type: String,
       enum: ["Morning", "Afternoon", "Evening", "Night"],
-      required: [true, "Time slot (Morning, Afternoon, Evening, Night) is required."],
     },
     time: {
       type: String, // Exact time representation (e.g., "09:00 AM", "12:45 PM")
@@ -56,6 +55,36 @@ const activitySchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Completed", "Skipped", "Moved"],
       default: "Pending",
+    },
+    rationale: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    bestTimeToVisit: {
+      type: String,
+      trim: true,
+    },
+    openingHoursText: {
+      type: String,
+      trim: true,
+    },
+    minDuration: {
+      type: Number,
+      default: 0,
+    },
+    maxDuration: {
+      type: Number,
+      default: 0,
+    },
+    orderIndex: {
+      type: Number,
+      default: 0,
+    },
+    type: {
+      type: String,
+      enum: ["activity", "lunch", "transit"],
+      default: "activity",
     },
     transportDetails: {
       mode: {
