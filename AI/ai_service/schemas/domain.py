@@ -89,6 +89,8 @@ class PlaceItem(BaseModel):
     avg_duration_minutes: int = 60
     tags: list[str] = Field(default_factory=list)
     is_indoor: bool = False
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class PlacesResult(BaseModel):
     """Output schema for the find_places MCP tool."""

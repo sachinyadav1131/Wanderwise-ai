@@ -6,8 +6,13 @@ settings / environment variables so no secrets are hard-coded.
 """
 
 import logging
-from google import genai
-from google.genai import types as genai_types
+
+try:
+    from google import genai
+    from google.genai import types as genai_types
+except Exception:  # pragma: no cover - environment fallback
+    genai = None
+    genai_types = None
 
 from ai_service.services.providers.base_provider import BaseProvider
 from ai_service.config.settings import settings
@@ -44,9 +49,14 @@ class GeminiProvider(BaseProvider):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_client(self) -> genai.Client:
+    def _get_client(self):
         """Return (or lazily create) the authenticated GenAI client."""
         if self._client is None:
+            if genai is None or genai_types is None:
+                raise EnvironmentError(
+                    "google-genai SDK is not available in this environment. "
+                    "Install the package to enable LLM generation."
+                )
             api_key: str = getattr(settings, "gemini_api_key", "")
             if not api_key:
                 raise EnvironmentError(
@@ -108,6 +118,9 @@ class GeminiProvider(BaseProvider):
         for key in allowed_passthrough:
             if key in kwargs:
                 gen_config_kwargs[key] = kwargs[key]
+
+        if genai_types is None:
+            raise EnvironmentError("google-genai SDK is not available in this environment.")
 
         config = genai_types.GenerateContentConfig(**gen_config_kwargs) if gen_config_kwargs else None
 

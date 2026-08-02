@@ -12,6 +12,8 @@ from ai_service.schemas.domain import (
     TripRequest, WorkflowState, ChangeProposal, APIResponse,
     MCPToolCall, MCPToolResponse,
 )
+from ai_service.agents.route_agent import solve_itinerary_timeline
+from ai_service import expense_db
 
 # ---------------------------------------------------------------------------
 # 1. FastAPI lifespan — initialise and shut down the MCP server gracefully
@@ -268,6 +270,44 @@ class ChatPayload(BaseModel):
     currentProgress: float = 0.0
     tripDetails: Optional[TripRequest] = None
     rejectedSuggestions: list[str] = Field(default_factory=list)
+
+class ScheduleTripRequest(BaseModel):
+    places: list[dict[str, Any]] = Field(default_factory=list)
+    hotel_location: dict[str, Any] = Field(default_factory=dict)
+    start_time: str = "08:00 AM"
+    end_time: str = "08:00 PM"
+
+
+@app.post("/api/v1/ai/schedule-trip", response_model=APIResponse[dict])
+async def schedule_trip(payload: ScheduleTripRequest):
+    logger.info("Scheduling itinerary timeline via solver")
+    result = solve_itinerary_timeline(
+        payload.places,
+        payload.hotel_location,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+    )
+    return APIResponse(success=True, message="Trip schedule generated.", data=result)
+
+
+@app.post("/api/v1/ai/expenses/add", response_model=APIResponse[dict])
+async def add_expense(payload: dict[str, Any]):
+    result = expense_db.add_expense(
+        trip_id=payload.get("trip_id", ""),
+        date=payload.get("date", datetime.date.today().isoformat()),
+        amount=payload.get("amount", 0),
+        category=payload.get("category", "General"),
+        subcategory=payload.get("subcategory", ""),
+        note=payload.get("note", ""),
+    )
+    return APIResponse(success=True, message="Expense logged.", data=result)
+
+
+@app.get("/api/v1/ai/expenses/summary/{trip_id}", response_model=APIResponse[dict])
+async def get_expense_summary(trip_id: str, planned_budget: float = 0):
+    result = expense_db.get_expense_summary(trip_id=trip_id, planned_budget=planned_budget)
+    return APIResponse(success=True, message="Expense summary retrieved.", data=result)
+
 
 @app.post("/api/v1/ai/chat", response_model=APIResponse[dict])
 async def chat_message(payload: ChatPayload):

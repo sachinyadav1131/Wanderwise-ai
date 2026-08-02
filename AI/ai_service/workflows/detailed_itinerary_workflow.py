@@ -14,8 +14,8 @@ class DetailedItineraryWorkflow(BaseWorkflow):
         self.stages = [
             "collect_context",
             "planner",
-            "route",
             "stay",
+            "route",
             "food",
             "budget",
             "critic",
@@ -81,7 +81,8 @@ class DetailedItineraryWorkflow(BaseWorkflow):
                 "time": "09:00 AM",
                 "location": "India Gate",
                 "cost": 0,
-                "estimatedDuration": 60
+                "estimatedDuration": 60,
+                "rationale": "Must-visit landmark in central area."
             }
         ])
         
@@ -90,7 +91,8 @@ class DetailedItineraryWorkflow(BaseWorkflow):
                 "mealType": "Lunch",
                 "restaurantName": "Khan Chacha",
                 "cuisineType": "Mughlai",
-                "averagePrice": 300
+                "averagePrice": 300,
+                "rationale": "Famous local dining spot."
             }
         ])
         
@@ -134,7 +136,8 @@ class DetailedItineraryWorkflow(BaseWorkflow):
                             "time": "09:30 AM",
                             "location": state.tripDetails.destination,
                             "cost": 0,
-                            "estimatedDuration": 120
+                            "estimatedDuration": 120,
+                            "rationale": f"Curated scenic & heritage walk for Day {day_num}."
                         }
                     ]
             
@@ -148,14 +151,30 @@ class DetailedItineraryWorkflow(BaseWorkflow):
                             "mealType": "Lunch",
                             "restaurantName": f"Local {state.tripDetails.destination} Cafe",
                             "cuisineType": "Local Specialties",
-                            "averagePrice": 250
+                            "averagePrice": 250,
+                            "rationale": f"Local culinary spot for Day {day_num}."
                         }
                     ]
+
+            # Extract key locations/attractions to build a custom, preference-driven day title
+            spot_names = []
+            for act in day_activities:
+                name = act.get("location") or act.get("title", "").replace("Visit ", "")
+                if name and name not in spot_names and name != state.tripDetails.destination:
+                    spot_names.append(name)
+            
+            if spot_names:
+                day_theme = " & ".join(spot_names[:2])
+                day_summary = f"Day {day_num}: {day_theme} in {state.tripDetails.destination}"
+            else:
+                themes = ["Cultural & Heritage Exploration", "Scenic Nature & Local Landmarks", "Highlights & Hidden Gems", "Relaxed Scenic Trail"]
+                selected_theme = themes[(day_num - 1) % len(themes)]
+                day_summary = f"Day {day_num}: {selected_theme} in {state.tripDetails.destination}"
 
             itinerary_days.append({
                 "dayNumber": day_num,
                 "date": day_date,
-                "summary": f"Day {day_num}: Adventure in {state.tripDetails.destination}",
+                "summary": day_summary,
                 "staySuggestion": stay_suggestion,
                 "foodSuggestions": day_food,
                 "activities": day_activities
@@ -163,6 +182,7 @@ class DetailedItineraryWorkflow(BaseWorkflow):
 
         state.context["output"] = {
             "dayDates": day_dates,
-            "itineraryDays": itinerary_days
+            "itineraryDays": itinerary_days,
+            "routeAlternatives": route_details.get("routeAlternatives", []),
         }
         return state

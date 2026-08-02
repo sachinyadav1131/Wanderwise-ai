@@ -67,13 +67,16 @@ class FoodAgent(BaseAgent):
             
             if day_cafes:
                 for i, cafe in enumerate(day_cafes):
+                    meal = meal_types[i % len(meal_types)]
+                    cuisine = ", ".join(cafe.get("tags", ["Local"])[:2])
                     day_suggestions.append({
-                        "mealType": meal_types[i % len(meal_types)],
+                        "mealType": meal,
                         "restaurantName": cafe["name"],
-                        "cuisineType": ", ".join(cafe.get("tags", ["Local"])[:2]),
+                        "cuisineType": cuisine,
                         "averagePrice": int(cafe.get("entry_fee", 0)) + 250,
                         "location": cafe["location"],
                         "isIndoor": cafe.get("is_indoor", True),
+                        "rationale": f"Curated {meal} choice matching your '{trip.foodPreference}' preference near {cafe['location']}.",
                     })
             else:
                 # Fallback food suggestions for other days
@@ -85,6 +88,7 @@ class FoodAgent(BaseAgent):
                         "averagePrice": 250,
                         "location": trip.destination,
                         "isIndoor": True,
+                        "rationale": f"Authentic local {meal} spot matching your '{trip.foodPreference}' preference.",
                     })
             food_by_day[str(day_num)] = day_suggestions
 

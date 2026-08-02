@@ -145,6 +145,13 @@ class MCPServer:
         from ai_service.mcp_server.tools.itinerary_tool import save_itinerary, update_itinerary
         from ai_service.mcp_server.tools.notification_tool import create_notification
         from ai_service.mcp_server.tools.agent_log_tool import store_agent_log
+        from ai_service import expense_db
+
+        async def add_expense_tool(*, trip_id: str, amount: float, category: str, subcategory: str = "", note: str = "") -> dict[str, Any]:
+            return expense_db.add_expense(trip_id=trip_id, date="today", amount=amount, category=category, subcategory=subcategory, note=note)
+
+        async def summarize_expenses_tool(*, trip_id: str) -> dict[str, Any]:
+            return expense_db.get_expense_summary(trip_id=trip_id)
 
         tools = {
             "check_weather":      check_weather,
@@ -155,6 +162,8 @@ class MCPServer:
             "update_itinerary":   update_itinerary,
             "create_notification": create_notification,
             "store_agent_log":    store_agent_log,
+            "add_expense":        add_expense_tool,
+            "summarize_expenses": summarize_expenses_tool,
         }
 
         for tool_name, handler in tools.items():

@@ -15,17 +15,17 @@ _PLACES_CATALOGUE: dict[str, list[dict]] = {
     # ── Outdoor Attractions ──────────────────────────────────────────────
     "delhi:attraction": [
         {"name": "India Gate", "category": "attraction", "location": "Kartavya Path, New Delhi",
-         "entry_fee": 0.0, "avg_duration_minutes": 60, "tags": ["iconic", "monument", "park"], "is_indoor": False},
+         "entry_fee": 0.0, "avg_duration_minutes": 60, "tags": ["iconic", "monument", "park"], "is_indoor": False, "latitude": 28.6129, "longitude": 77.2295},
         {"name": "Qutub Minar", "category": "attraction", "location": "Mehrauli, Delhi",
-         "entry_fee": 40.0, "avg_duration_minutes": 90, "tags": ["UNESCO", "heritage", "history"], "is_indoor": False},
+         "entry_fee": 40.0, "avg_duration_minutes": 90, "tags": ["UNESCO", "heritage", "history"], "is_indoor": False, "latitude": 28.5245, "longitude": 77.1855},
         {"name": "Humayun's Tomb", "category": "attraction", "location": "Nizamuddin East, Delhi",
-         "entry_fee": 40.0, "avg_duration_minutes": 75, "tags": ["UNESCO", "Mughal", "garden"], "is_indoor": False},
+         "entry_fee": 40.0, "avg_duration_minutes": 75, "tags": ["UNESCO", "Mughal", "garden"], "is_indoor": False, "latitude": 28.5933, "longitude": 77.2507},
         {"name": "Lodhi Garden", "category": "attraction", "location": "Lodhi Road, Delhi",
-         "entry_fee": 0.0, "avg_duration_minutes": 60, "tags": ["park", "heritage", "morning walk"], "is_indoor": False},
+         "entry_fee": 0.0, "avg_duration_minutes": 60, "tags": ["park", "heritage", "morning walk"], "is_indoor": False, "latitude": 28.5931, "longitude": 77.2197},
         {"name": "Red Fort", "category": "attraction", "location": "Chandni Chowk, Delhi",
-         "entry_fee": 35.0, "avg_duration_minutes": 120, "tags": ["UNESCO", "Mughal", "history"], "is_indoor": False},
+         "entry_fee": 35.0, "avg_duration_minutes": 120, "tags": ["UNESCO", "Mughal", "history"], "is_indoor": False, "latitude": 28.6562, "longitude": 77.2410},
         {"name": "Akshardham Temple", "category": "attraction", "location": "Noida More, Delhi",
-         "entry_fee": 0.0, "avg_duration_minutes": 180, "tags": ["spiritual", "architecture"], "is_indoor": False},
+         "entry_fee": 0.0, "avg_duration_minutes": 180, "tags": ["spiritual", "architecture"], "is_indoor": False, "latitude": 28.6127, "longitude": 77.2773},
     ],
     # ── Indoor Alternatives ──────────────────────────────────────────────
     "delhi:indoor": [
@@ -167,6 +167,7 @@ Return ONLY a valid JSON object matching this schema (do not wrap in markdown or
                         "avg_duration_minutes": int(item.get("avg_duration_minutes") or 90),
                         "tags": item.get("tags") or [],
                         "is_indoor": bool(item.get("is_indoor") or False)
+                        ,"latitude": item.get("latitude"), "longitude": item.get("longitude")
                     })
                 elif isinstance(item, str):
                     normalized.append({
