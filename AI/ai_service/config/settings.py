@@ -15,7 +15,8 @@ def load_backend_env():
                     # Do not overwrite already set system env vars
                     target_keys = [
                         "GROQ_API_KEY", "HUGGINGFACEHUB_API_TOKEN", "HF_API_KEY", "HUGGINGFACE_API_KEY",
-                        "CLOUDINARY_CLIENT_NAME", "CLOUDINARY_CLIENT_API", "CLOUDINARY_CLIENT_SECRET"
+                        "CLOUDINARY_CLIENT_NAME", "CLOUDINARY_CLIENT_API", "CLOUDINARY_CLIENT_SECRET",
+                        "GOOGLE_MAPS_API_KEY", "GOOGLE_DISTANCE_MATRIX_API_KEY"
                     ]
                     if k in target_keys and not os.environ.get(k):
                         os.environ[k] = v
@@ -31,6 +32,11 @@ class Settings(BaseSettings):
     host: str = Field("0.0.0.0", validation_alias="HOST")
     llm_provider: str = Field("groq", validation_alias="LLM_PROVIDER")
     mcp_enabled: bool = Field(True, validation_alias="MCP_ENABLED")
+
+    # -----------------------------------------------------------------------
+    # Google Maps Distance Matrix API
+    # -----------------------------------------------------------------------
+    google_maps_api_key: str = Field("", validation_alias="GOOGLE_MAPS_API_KEY")
 
     # -----------------------------------------------------------------------
     # Cloudinary & Hugging Face (AI Cover Image)
