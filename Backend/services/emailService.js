@@ -2,9 +2,46 @@ import nodemailer from "nodemailer";
 
 // --- CORE EMAIL SENDER ---
 export const sendEmail = async ({ email, subject, message }) => {
+    // 1. HTTP REST API Sending via Brevo (Bypasses Render SMTP port blocks over HTTPS port 443)
+    if (process.env.BREVO_API_KEY) {
+        console.log(`[Email Service] 🚀 Dispatching email via Brevo REST API (Port 443) to: ${email}...`);
+        const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                "api-key": process.env.BREVO_API_KEY,
+                "content-type": "application/json",
+                "accept": "application/json",
+            },
+            body: JSON.stringify({
+                sender: {
+                    name: "Wanderwise AI",
+                    email: process.env.SMTP_MAIL || "sachin8940yadav@gmail.com",
+                },
+                to: [
+                    {
+                        email: email,
+                    }
+                ],
+                subject: subject,
+                htmlContent: message,
+            }),
+        });
+
+        const resData = await response.json();
+        if (!response.ok) {
+            console.error(`[Email Service] ❌ Brevo API Error (${response.status}):`, resData);
+            throw new Error(`Brevo API failed: ${resData.message || response.statusText}`);
+        }
+
+        console.log(`[Email Service] 📩 SUCCESS: Email sent via Brevo API to ${email} (MessageId: ${resData.messageId})`);
+        return { success: true, provider: "Brevo API (HTTP 443)", id: resData.messageId };
+    }
+
+    // 2. Standard Nodemailer SMTP (For local development or hosts with unblocked SMTP ports)
+    console.log(`[Email Service] 📧 Dispatching email via Nodemailer SMTP to: ${email}...`);
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
-        service: process.env.SMTP_SERVICE, // Fixed typo here
+        service: process.env.SMTP_SERVICE,
         port: process.env.SMTP_PORT,
         auth: {
             user: process.env.SMTP_MAIL,
@@ -19,7 +56,9 @@ export const sendEmail = async ({ email, subject, message }) => {
         html: message,
     };
 
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`[Email Service] 📩 SUCCESS: Email sent via Nodemailer SMTP to ${email} (MessageId: ${info.messageId})`);
+    return { success: true, provider: "Nodemailer SMTP", id: info.messageId };
 };
 
 // --- WANDERWISE AI EMAIL TEMPLATES ---
