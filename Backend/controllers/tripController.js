@@ -245,7 +245,8 @@ export const startTrip = asyncHandler(async (req, res) => {
     rationale: activity.rationale || "",
   }));
 
-  const aiResponse = await fetch("http://127.0.0.1:8000/api/v1/ai/schedule-trip", {
+  const baseUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+  const aiResponse = await fetch(`${baseUrl}/api/v1/ai/schedule-trip`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -327,7 +328,8 @@ export const getTripSchedule = asyncHandler(async (req, res) => {
     rationale: activity.rationale || "",
   }));
 
-  const aiResponse = await fetch("http://127.0.0.1:8000/api/v1/ai/schedule-trip", {
+  const baseUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+  const aiResponse = await fetch(`${baseUrl}/api/v1/ai/schedule-trip`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -365,7 +367,8 @@ export const addTripExpense = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to access this trip's expenses.");
   }
 
-  const fastApiResponse = await fetch("http://127.0.0.1:8000/api/v1/ai/expenses/add", {
+  const baseUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+  const fastApiResponse = await fetch(`${baseUrl}/api/v1/ai/expenses/add`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -400,7 +403,7 @@ export const getTripExpensesSummary = asyncHandler(async (req, res) => {
 
   const plannedBudget = trip.budgetTarget || trip.totalBudget || 0;
   const fastApiResponse = await fetch(
-    `http://127.0.0.1:8000/api/v1/ai/expenses/summary/${trip._id}` +
+    `${process.env.AI_SERVICE_URL || "http://127.0.0.1:8000"}/api/v1/ai/expenses/summary/${trip._id}` +
     `?planned_budget=${encodeURIComponent(plannedBudget)}` +
     `&activity_spent=${encodeURIComponent(activitySpent)}`
   );
