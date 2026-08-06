@@ -22,7 +22,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["WeatherAlert", "ReplanSuggestion", "General"],
+      enum: ["WeatherAlert", "ReplanSuggestion", "General", "Budget", "Itinerary"],
       default: "General",
     },
     changeSuggestion: {

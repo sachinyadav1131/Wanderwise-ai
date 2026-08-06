@@ -3,6 +3,7 @@ import { Itinerary } from "../models/Itinerary.js";
 import { Activity } from "../models/Activity.js";
 import { StaySuggestion } from "../models/StaySuggestion.js";
 import { FoodSuggestion } from "../models/FoodSuggestion.js";
+import { Notification } from "../models/Notification.js";
 import { aiService } from "../services/aiService.js";
 import { huggingFaceService } from "../services/huggingFaceService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -377,6 +378,30 @@ export const addTripExpense = asyncHandler(async (req, res) => {
     }),
   });
   const fastApiPayload = await fastApiResponse.json();
+
+  // Check remaining budget to send notification if negative
+  try {
+    const completedActivities = await Activity.find({ trip: trip._id, status: "Completed" });
+    const activitySpent = completedActivities.reduce((sum, a) => sum + (a.cost || 0), 0);
+    const plannedBudget = trip.budgetTarget || trip.totalBudget || 0;
+    const summaryRes = await fetch(
+      `${baseUrl}/api/v1/ai/expenses/summary/${trip._id}?planned_budget=${encodeURIComponent(plannedBudget)}&activity_spent=${encodeURIComponent(activitySpent)}`
+    );
+    const summaryPayload = await summaryRes.json();
+    const remaining = summaryPayload?.data?.remaining_budget;
+
+    if (remaining !== undefined && remaining < 0) {
+      await Notification.create({
+        user: trip.user,
+        trip: trip._id,
+        title: "Budget Alert: Limit Exceeded",
+        message: `You have exceeded your planned budget for ${trip.destination}. Remaining balance is ₹${remaining}.`,
+        type: "Budget"
+      });
+    }
+  } catch (err) {
+    console.error("Failed to verify remaining budget after expense:", err);
+  }
 
   return res.status(200).json({
     success: true,
