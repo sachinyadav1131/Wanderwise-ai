@@ -1,15 +1,87 @@
 """
-CompanionAgent — refactored for Phase 7.
-Processes user chat messages and calls `create_notification` via MCP
-when a significant user intent (replan, weather, skip) is detected.
-Also calls `store_agent_log` to record its response rationale.
+CompanionAgent — refactored for Phase 7 + Phase 8.
+Processes user chat messages and:
+  1. Detects expense-logging intent ("add 200 rs for food today") and records
+     the expense in the SQLite ledger via the AI service expense endpoint.
+  2. Handles weather queries via MCP check_weather tool.
+  3. Detects itinerary-modification intent and produces structured suggestions.
+  4. Calls `store_agent_log` to record its response rationale.
 """
+import datetime
+import re
 from ai_service.agents.base_agent import BaseAgent
 from ai_service.schemas.domain import WorkflowState, AgentResult
 from ai_service.mcp_server.client import mcp_client
+from ai_service import expense_db
 
 # Keywords that indicate the user wants to trigger a plan change
 _REPLAN_KEYWORDS = {"rain", "weather", "cancel", "skip", "change", "reschedule", "replace", "indoor"}
+
+# Expense category map from common keywords
+_CATEGORY_MAP = {
+    "food": "Food", "lunch": "Food", "dinner": "Food", "breakfast": "Food",
+    "snack": "Food", "meal": "Food", "restaurant": "Food", "cafe": "Food",
+    "coffee": "Food", "drink": "Food", "eat": "Food",
+    "cab": "Transport", "auto": "Transport", "taxi": "Transport", "uber": "Transport",
+    "ola": "Transport", "metro": "Transport", "bus": "Transport", "train": "Transport",
+    "transport": "Transport", "travel": "Transport", "ride": "Transport",
+    "ticket": "Attractions", "entry": "Attractions", "museum": "Attractions",
+    "attraction": "Attractions", "tour": "Attractions",
+    "hotel": "Stay", "stay": "Stay", "hostel": "Stay", "accommodation": "Stay",
+    "shopping": "Shopping", "shop": "Shopping", "souvenir": "Shopping", "buy": "Shopping",
+    "misc": "Miscellaneous", "other": "Miscellaneous", "general": "Miscellaneous",
+}
+
+
+def _detect_expense_intent(message: str) -> dict | None:
+    """
+    Detect if the message is an expense-logging request.
+    Patterns:
+      "add 200 rs for food today"
+      "spent 500 on transport yesterday"
+      "log 150 for lunch on 2026-08-05"
+      "add ₹300 for cab"
+    Returns dict with {amount, category, date, note} or None.
+    """
+    msg = message.lower().strip()
+
+    # Quick filter — must mention money or expense verbs
+    expense_verbs = r"(?:add|log|record|spent|spend|paid|pay|expense|track)"
+    money_pattern = r"(?:rs\.?|inr|₹|rupees?)?\s*(\d+(?:\.\d{1,2})?)\s*(?:rs\.?|inr|₹|rupees?)?"
+    if not re.search(expense_verbs, msg):
+        return None
+    amount_match = re.search(money_pattern, msg)
+    if not amount_match:
+        return None
+
+    amount = float(amount_match.group(1))
+
+    # Determine category
+    category = "Miscellaneous"
+    for keyword, cat in _CATEGORY_MAP.items():
+        if keyword in msg:
+            category = cat
+            break
+
+    # Determine date
+    today = datetime.date.today()
+    if "yesterday" in msg:
+        date = (today - datetime.timedelta(days=1)).isoformat()
+    elif "today" in msg:
+        date = today.isoformat()
+    else:
+        # Look for explicit date like "2026-08-05" or "05 aug" etc.
+        date_match = re.search(r"(\d{4}-\d{2}-\d{2})", msg)
+        if date_match:
+            date = date_match.group(1)
+        else:
+            date = today.isoformat()
+
+    # Extract note (text after "for" or "on")
+    note_match = re.search(r"for\s+(.+?)(?:\s+(?:today|yesterday|on\s+\d)|\s*$)", msg)
+    note = note_match.group(1).strip() if note_match else category.lower()
+
+    return {"amount": amount, "category": category, "date": date, "note": note}
 
 
 class CompanionAgent(BaseAgent):
@@ -31,12 +103,52 @@ class CompanionAgent(BaseAgent):
         import json
         from ai_service.services.llm_service import llm_service
 
-        # ── Weather Query Interception ──────────────────────────────────────────
-        is_weather_query = any(w in user_message.lower() for w in ["weather", "temperature", "temp", "rain", "forecast", "climate", "degree", "cold", "hot"])
-        
+        # ── 1. Expense Intent Interception ─────────────────────────────────────
+        expense_intent = _detect_expense_intent(user_message)
+        if expense_intent:
+            try:
+                result = expense_db.add_expense(
+                    trip_id=state.tripId,
+                    date=expense_intent["date"],
+                    amount=expense_intent["amount"],
+                    category=expense_intent["category"],
+                    note=expense_intent["note"],
+                )
+                reply_text = (
+                    f"✅ Got it! I've logged **₹{expense_intent['amount']}** for "
+                    f"**{expense_intent['category']}** on {expense_intent['date']}. "
+                    f"Your budget tracker has been updated. "
+                    f"Use the budget widget to see your live spending progress. 💰"
+                )
+                details = {
+                    "replyText": reply_text,
+                    "hasSuggestion": False,
+                    "suggestion": None,
+                    "expenseLogged": result,
+                }
+                await mcp_client.call_tool("store_agent_log", {
+                    "trip_id": state.tripId,
+                    "agent_name": self.name,
+                    "action": "ChatResponse",
+                    "reasoning": f"Expense intent detected: ₹{expense_intent['amount']} for {expense_intent['category']}",
+                    "details": details,
+                })
+                return "ChatResponse", f"Logged expense ₹{expense_intent['amount']}", details
+            except Exception as e:
+                reply_text = f"⚠️ I understood you want to log an expense but ran into an issue: {str(e)}. Please try again!"
+                return "ChatResponse", "Expense logging failed", {
+                    "replyText": reply_text,
+                    "hasSuggestion": False,
+                    "suggestion": None,
+                }
+
+        # ── 2. Weather Query Interception ──────────────────────────────────────
+        is_weather_query = any(w in user_message.lower() for w in [
+            "weather", "temperature", "temp", "rain", "forecast", "climate", "degree", "cold", "hot"
+        ])
+
         weather_context = ""
         if is_weather_query:
-            # 1. Ask the LLM to extract the city name from the message, defaulting to trip.destination
             try:
                 extract_instruction = (
                     "You are a location extraction utility. Read the user message and extract the name of the city "
@@ -54,13 +166,11 @@ class CompanionAgent(BaseAgent):
             except Exception:
                 target_city = trip.destination
 
-            # 2. Invoke check_weather MCP tool for the extracted city
             try:
                 date_str = trip.startDate.split("T")[0] if isinstance(trip.startDate, str) else trip.startDate.strftime("%Y-%m-%d")
             except Exception:
-                import datetime
-                date_str = datetime.date.today().strftime("%Y-%m-%d")
-                
+                date_str = datetime.date.today().isoformat()
+
             try:
                 weather_data = await mcp_client.call_tool("check_weather", {
                     "location": target_city,
@@ -88,7 +198,7 @@ class CompanionAgent(BaseAgent):
                 "and now want to apply it anyway)."
             )
 
-        # Prompt instruction requesting structured json parsing for user modification intent
+        # ── 3. General Itinerary / Q&A via LLM ────────────────────────────────
         system_instruction = (
             "You are a helpful travel companion AI. You analyze user messages against their current itinerary "
             "activities to check if they want to modify their plan (add, update/reschedule, or delete/cancel activities). "
@@ -153,7 +263,7 @@ Format your response EXACTLY as a JSON object matching this schema:
                 system_instruction=system_instruction,
                 structured_json=True
             )
-            
+
             cleaned_text = response_text.strip()
             if cleaned_text.startswith("```"):
                 lines = cleaned_text.splitlines()
@@ -162,7 +272,7 @@ Format your response EXACTLY as a JSON object matching this schema:
                 if lines[-1].startswith("```"):
                     lines = lines[:-1]
                 cleaned_text = "\n".join(lines).strip()
-                
+
             data = json.loads(cleaned_text)
             reply_text = data.get("replyText") or "I can help you change your trip. Just let me know what to update!"
             has_suggestion = bool(data.get("hasSuggestion", False))
@@ -174,7 +284,6 @@ Format your response EXACTLY as a JSON object matching this schema:
             suggestion = None
 
         if has_suggestion and suggestion:
-            # ── MCP Tool Call: create_notification ────────────────────────
             try:
                 await mcp_client.call_tool("create_notification", {
                     "trip_id": state.tripId,
@@ -199,7 +308,6 @@ Format your response EXACTLY as a JSON object matching this schema:
             "suggestion": suggestion,
         }
 
-        # ── MCP Tool Call: store_agent_log ───────────────────────────────
         try:
             await mcp_client.call_tool("store_agent_log", {
                 "trip_id": state.tripId,

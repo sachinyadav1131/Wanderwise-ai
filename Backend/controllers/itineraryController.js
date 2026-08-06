@@ -169,11 +169,35 @@ export const getItineraryByTripId = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Not authorized to access this trip", 401));
   }
 
+  const parseTimeString = (timeStr) => {
+    if (!timeStr) return 99999;
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return 99999;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3].toUpperCase();
+    if (period === "PM" && hours < 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
   const itineraries = await Itinerary.find({ trip: tripId })
     .populate("activities")
     .populate("staySuggestion")
     .populate("foodSuggestions")
     .sort({ dayNumber: 1 });
+
+  // Sort activities in each day chronologically by orderIndex and time
+  for (const itin of itineraries) {
+    if (itin.activities && itin.activities.length > 0) {
+      itin.activities.sort((a, b) => {
+        if (a.orderIndex && b.orderIndex && a.orderIndex !== b.orderIndex) {
+          return a.orderIndex - b.orderIndex;
+        }
+        return parseTimeString(a.time) - parseTimeString(b.time);
+      });
+    }
+  }
 
   return res.status(200).json({
     success: true,

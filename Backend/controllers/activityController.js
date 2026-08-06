@@ -62,10 +62,15 @@ export const updateActivityStatus = asyncHandler(async (req, res, next) => {
 
   await activity.save();
 
+  // Recompute cumulative spent from all completed activities for live budget update
+  const completedActivities = await Activity.find({ trip: activity.trip, status: "Completed" });
+  const activitySpent = completedActivities.reduce((sum, a) => sum + (a.cost || 0), 0);
+
   return res.status(200).json({
     success: true,
     message: `Activity status updated to ${status} successfully.`,
     data: activity,
+    activitySpent,
   });
 });
 

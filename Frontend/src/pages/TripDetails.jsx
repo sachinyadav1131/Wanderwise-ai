@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { fetchTripById, updateTripStatus, deleteTrip } from "../store/slices/tripSlice";
-import { fetchItinerary } from "../store/slices/itinerarySlice";
+import { fetchItinerary, resolveActivityImage } from "../store/slices/itinerarySlice";
 import { setActiveSuggestion } from "../store/slices/suggestionSlice";
 import TripChatbot from "../components/TripChatbot";
 import ActivityChecklist from "../components/ActivityChecklist";
+import ChecklistModal from "../components/ChecklistModal";
 
 // ─── Star Rating ──────────────────────────────────────────────────────────────
 function StarRating({ rating }) {
@@ -87,16 +88,9 @@ function HotelCard({ hotel }) {
   );
 }
 
-// ─── Time-of-Day Icon ─────────────────────────────────────────────────────────
-const SLOT_META = {
-  Morning:   { icon: "🌅", color: "bg-amber-50 border-amber-200 text-amber-700" },
-  Afternoon: { icon: "☀️", color: "bg-orange-50 border-orange-200 text-orange-700" },
-  Evening:   { icon: "🌙", color: "bg-indigo-50 border-indigo-200 text-indigo-700" },
-};
 
 // ─── Activity Slot Card ───────────────────────────────────────────────────────
-function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
-  const meta = SLOT_META[slot] || { icon: "📍", color: "bg-gray-50 border-gray-200 text-gray-700" };
+function ActivitySlotCard({ dayNum, slot, data, tripStatus, onStatusChange }) {
   const activityId = `day${dayNum}-${slot.toLowerCase()}`;
 
   const [loadedImage, setLoadedImage] = useState(null);
@@ -135,15 +129,9 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
             className="w-full h-full object-cover"
             loading="lazy"
             onError={(e) => {
-              e.target.src = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&auto=format&fit=crop";
+              e.target.src = resolveActivityImage(data.activity, data.location);
             }}
           />
-          {/* Slot badge */}
-          <div className="absolute top-2 left-2">
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${meta.color}`}>
-              {meta.icon} {slot}
-            </span>
-          </div>
         </div>
 
         {/* Content */}
@@ -195,18 +183,39 @@ function ActivitySlotCard({ dayNum, slot, data, tripStatus }) {
           initialStatus={data.status}
           label="Mark as visited"
           disabled={tripStatus !== "Started"}
+          onStatusChange={onStatusChange}
         />
       </div>
     </div>
   );
 }
 
+const parseTimeString = (timeStr) => {
+  if (!timeStr) return 99999;
+  const match = String(timeStr).match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return 99999;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === "PM" && hours < 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+};
+
 // ─── Day Block ────────────────────────────────────────────────────────────────
-function DayBlock({ day, tripStatus }) {
+function DayBlock({ day, tripStatus, onStatusChange }) {
   const [expanded, setExpanded] = useState(true);
   const activities = day.activitiesList && day.activitiesList.length > 0 
     ? day.activitiesList 
     : ["Morning", "Afternoon", "Evening"].map((slot) => day.slots[slot]).filter(Boolean);
+
+  const sortedActivities = useMemo(() => {
+    return [...activities].sort((a, b) => {
+      const timeA = parseTimeString(a.timing || a.time);
+      const timeB = parseTimeString(b.timing || b.time);
+      return timeA - timeB;
+    });
+  }, [activities]);
 
   return (
     <div id={`day-block-${day.day}`} className="mb-16 pb-12 border-b border-gray-100/70 last:border-b-0 last:mb-0 last:pb-0">
@@ -237,13 +246,14 @@ function DayBlock({ day, tripStatus }) {
       {expanded && (
         <div className="space-y-8 animate-fade-in">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {activities.map((actData, idx) => (
+            {sortedActivities.map((actData, idx) => (
               <ActivitySlotCard
                 key={actData._id || idx}
                 dayNum={day.day}
                 slot={actData.timeSlot || ["Morning", "Afternoon", "Evening"][idx % 3]}
                 data={actData}
                 tripStatus={tripStatus}
+                onStatusChange={onStatusChange}
               />
             ))}
           </div>
@@ -300,23 +310,41 @@ function PlannerTimeline({ schedule, budgetTarget, expensesSummary }) {
   const daysList = schedule && schedule.length > 0 ? schedule : [];
   const currentDaySchedule = daysList[selectedDayIdx] || daysList[0];
   const items = currentDaySchedule?.items || [];
-  const budgetPercent = Math.min(100, Math.round(((expensesSummary?.total_spent || 0) / Math.max(budgetTarget || 1, 1)) * 100));
+  const totalSpent = expensesSummary?.total_spent || 0;
+  const target = budgetTarget || 1;
+  const isOverBudget = totalSpent > target;
+  const budgetPercent = Math.round((totalSpent / Math.max(target, 1)) * 100);
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-indigo-100 bg-indigo-50/50 p-5">
+      <div className={`rounded-3xl border p-5 transition-all ${
+        isOverBudget ? "border-rose-200 bg-rose-50/60" : "border-indigo-100 bg-indigo-50/50"
+      }`}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-sm font-semibold text-indigo-700">Trip budget</p>
-            <p className="text-xs text-indigo-600">Live progress against your target</p>
+            <p className={`text-sm font-semibold ${isOverBudget ? "text-rose-700" : "text-indigo-700"}`}>Trip budget</p>
+            <p className={`text-xs ${isOverBudget ? "text-rose-600" : "text-indigo-600"}`}>
+              {isOverBudget ? "⚠️ Target budget exceeded!" : "Live progress against your target"}
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-bold text-indigo-700">₹{expensesSummary?.total_spent || 0} / ₹{budgetTarget || 0}</p>
-            <p className="text-xs text-indigo-600">{budgetPercent}% used</p>
+            <p className={`text-sm font-bold ${isOverBudget ? "text-rose-600 font-extrabold" : "text-indigo-700"}`}>
+              ₹{totalSpent} / ₹{budgetTarget || 0}
+            </p>
+            <p className={`text-xs ${isOverBudget ? "text-rose-500 font-bold" : "text-indigo-600"}`}>
+              {budgetPercent}% used {isOverBudget ? "(Over budget!)" : ""}
+            </p>
           </div>
         </div>
-        <div className="h-3 rounded-full bg-white overflow-hidden">
-          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${budgetPercent}%` }} />
+        <div className="h-3 rounded-full bg-white overflow-hidden shadow-inner">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              isOverBudget
+                ? "bg-gradient-to-r from-rose-500 to-red-600"
+                : "bg-gradient-to-r from-indigo-500 to-cyan-500"
+            }`}
+            style={{ width: `${Math.min(100, budgetPercent)}%` }}
+          />
         </div>
       </div>
 
@@ -397,6 +425,30 @@ export default function TripDetails() {
   const [plannerLoading, setPlannerLoading] = useState(false);
   const [routeSelectionLoading, setRouteSelectionLoading] = useState(false);
   const [expenseSummary, setExpenseSummary] = useState(null);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+
+  const loadExpenseSummary = useCallback(async () => {
+    if (!tripId) return;
+    try {
+      const res = await axios.get(`/api/v1/trips/${tripId}/expenses/summary`);
+      setExpenseSummary(res.data?.data || null);
+    } catch (err) {
+      console.error("Failed to load expense summary", err);
+    }
+  }, [tripId]);
+
+  const loadPlannerSchedule = useCallback(async () => {
+    if (!tripId) return;
+    setPlannerLoading(true);
+    try {
+      const res = await axios.get(`/api/v1/trips/${tripId}/schedule`);
+      setPlannerSchedule(res.data?.data?.schedule || null);
+    } catch (err) {
+      console.error("Failed to load planner schedule", err);
+    } finally {
+      setPlannerLoading(false);
+    }
+  }, [tripId]);
 
   useEffect(() => {
     dispatch(fetchTripById(tripId));
@@ -405,17 +457,11 @@ export default function TripDetails() {
   }, [tripId, dispatch]);
 
   useEffect(() => {
-    if (!tripId) return;
-    const loadExpenseSummary = async () => {
-      try {
-        const res = await axios.get(`/api/v1/trips/${tripId}/expenses/summary`);
-        setExpenseSummary(res.data?.data || null);
-      } catch (err) {
-        console.error("Failed to load expense summary", err);
-      }
-    };
     loadExpenseSummary();
-  }, [tripId, trip?.status]);
+    if (trip?.status === "Started" || trip?.status === "Completed" || trip?.status === "Planned") {
+      loadPlannerSchedule();
+    }
+  }, [loadExpenseSummary, loadPlannerSchedule, trip?.status]);
 
   const handleUpdateStatus = async (newStatus) => {
     if (newStatus === "Started") {
@@ -465,11 +511,18 @@ export default function TripDetails() {
 
   const destinationData = itinerary || {};
   const budgetTarget = trip?.budgetTarget || trip?.budget || trip?.totalBudget || 0;
-  const plannerSummary = useMemo(() => ({
-    totalSpent: expenseSummary?.total_spent || 0,
-    plannedBudget: expenseSummary?.planned_budget || budgetTarget,
-    remainingBudget: expenseSummary?.remaining_budget || Math.max(budgetTarget - (expenseSummary?.total_spent || 0), 0),
-  }), [expenseSummary, budgetTarget]);
+  const plannerSummary = useMemo(() => {
+    const totalSpent = expenseSummary?.total_spent || 0;
+    const remaining = expenseSummary?.remaining_budget !== undefined
+      ? expenseSummary.remaining_budget
+      : (budgetTarget - totalSpent);
+    return {
+      totalSpent,
+      plannedBudget: expenseSummary?.planned_budget || budgetTarget,
+      remainingBudget: remaining,
+      isOverBudget: remaining < 0,
+    };
+  }, [expenseSummary, budgetTarget]);
   const heroImage =
     trip?.coverImage ||
     "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1200&auto=format&fit=crop";
@@ -480,8 +533,13 @@ export default function TripDetails() {
     if (tag.includes("Activities")) targetId = "places-to-visit";
     if (tag.includes("Full Itinerary")) targetId = "trip-hero";
     if (tag.includes("AI Companion")) {
-      const chatBtn = document.getElementById("chatbot-toggle-btn");
+      // ID matches the actual button in TripChatbot.jsx
+      const chatBtn = document.getElementById("chatbot-toggle");
       if (chatBtn) chatBtn.click();
+      return;
+    }
+    if (tag.includes("Checklist")) {
+      setChecklistOpen(true);
       return;
     }
 
@@ -679,18 +737,27 @@ export default function TripDetails() {
               </div>
             )}
 
-            {trip?.status === "Started" && (
+            {(plannerSchedule || trip?.status === "Started" || trip?.status === "Completed" || trip?.status === "Planned") && (
               <section className="mb-10">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-2xl font-extrabold text-gray-900" style={{ fontFamily: "var(--font-display)" }}>Optimized day plan</h2>
                     <p className="text-gray-500 text-xs mt-0.5">A proximity-first timeline with transit caps and a lunch break.</p>
                   </div>
-                  <div className="rounded-2xl bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">
-                    Budget left: ₹{plannerSummary.remainingBudget}
+                  <div className={`rounded-2xl px-3.5 py-2 text-sm font-bold border transition-all ${
+                    plannerSummary.isOverBudget
+                      ? "bg-rose-50 border-rose-200 text-rose-600 shadow-sm"
+                      : "bg-gray-50 border-gray-100 text-gray-700"
+                  }`}>
+                    Budget left: <span className={plannerSummary.isOverBudget ? "text-rose-600 font-extrabold" : ""}>₹{plannerSummary.remainingBudget}</span>
                   </div>
                 </div>
-                {plannerSchedule ? (
+                {plannerLoading ? (
+                  <div className="rounded-3xl border border-indigo-100 bg-indigo-50/30 p-8 text-center text-sm font-semibold text-indigo-600 animate-pulse flex items-center justify-center gap-3">
+                    <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                    Generating live optimized timeline schedule...
+                  </div>
+                ) : plannerSchedule ? (
                   <PlannerTimeline schedule={plannerSchedule} budgetTarget={budgetTarget} expensesSummary={expenseSummary} />
                 ) : (
                   <div className="rounded-3xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
@@ -701,22 +768,139 @@ export default function TripDetails() {
             )}
 
             {trip?.status === "Completed" && expenseSummary && (
-              <section className="mb-10 rounded-3xl border border-emerald-100 bg-emerald-50/70 p-6">
-                <h2 className="text-xl font-extrabold text-emerald-900">Post-trip expense summary</h2>
-                <p className="text-sm text-emerald-700 mt-1">Your final spend and category split.</p>
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl bg-white p-4">
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Total spent</p>
-                    <p className="text-lg font-bold text-gray-900">₹{expenseSummary.total_spent}</p>
+              <section className="mb-10 rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-teal-50/60 p-6 shadow-sm">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-lg">💰</div>
+                  <div>
+                    <h2 className="text-xl font-extrabold text-emerald-900">Post-Trip Expense Breakdown</h2>
+                    <p className="text-xs text-emerald-700 mt-0.5">Complete spending analysis for your trip</p>
                   </div>
-                  <div className="rounded-2xl bg-white p-4">
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Planned budget</p>
-                    <p className="text-lg font-bold text-gray-900">₹{expenseSummary.planned_budget}</p>
+                </div>
+
+                {/* Summary row */}
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4 mb-6">
+                  {(() => {
+                    const remainingVal = expenseSummary.remaining_budget ?? 0;
+                    const isOver = remainingVal < 0;
+                    return [
+                      { label: "Total Spent", value: `₹${expenseSummary.total_spent || 0}`, color: "text-rose-600", bg: "bg-rose-50 border-rose-100" },
+                      { label: "Budget", value: `₹${expenseSummary.planned_budget || 0}`, color: "text-indigo-600", bg: "bg-indigo-50 border-indigo-100" },
+                      { label: "Remaining", value: `₹${remainingVal}`, color: isOver ? "text-rose-600 font-extrabold" : "text-emerald-600 font-extrabold", bg: isOver ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-100" },
+                      { label: "Budget Used", value: `${expenseSummary.budget_percent || 0}%`, color: isOver ? "text-rose-600 font-extrabold" : "text-amber-600", bg: isOver ? "bg-rose-50 border-rose-100" : "bg-amber-50 border-amber-100" },
+                    ].map((item) => (
+                      <div key={item.label} className={`rounded-2xl border p-4 ${item.bg}`}>
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold mb-1">{item.label}</p>
+                        <p className={`text-xl font-extrabold ${item.color}`}>{item.value}</p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+
+                {/* Overall progress bar */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-gray-600">Budget utilisation</span>
+                    <span className="text-xs font-bold text-indigo-600">{expenseSummary.budget_percent || 0}%</span>
                   </div>
-                  <div className="rounded-2xl bg-white p-4">
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Remaining</p>
-                    <p className="text-lg font-bold text-gray-900">₹{expenseSummary.remaining_budget}</p>
+                  <div className="h-3 rounded-full bg-white overflow-hidden shadow-inner">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        (expenseSummary.budget_percent || 0) > 100
+                          ? "bg-gradient-to-r from-rose-500 to-red-600"
+                          : (expenseSummary.budget_percent || 0) > 80
+                          ? "bg-gradient-to-r from-amber-400 to-orange-500"
+                          : "bg-gradient-to-r from-emerald-400 to-teal-500"
+                      }`}
+                      style={{ width: `${Math.min(100, expenseSummary.budget_percent || 0)}%` }}
+                    />
                   </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  {/* By-Category table */}
+                  {expenseSummary.by_category && Object.keys(expenseSummary.by_category).length > 0 && (
+                    <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden shadow-sm">
+                      <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
+                        <span className="text-sm">📊</span>
+                        <h3 className="text-sm font-bold text-gray-800">Breakdown by Category</h3>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {Object.entries(expenseSummary.by_category)
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([cat, amt]) => {
+                            const pct = expenseSummary.total_spent > 0
+                              ? Math.round((amt / expenseSummary.total_spent) * 100)
+                              : 0;
+                            return (
+                              <div key={cat} className="px-4 py-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-semibold text-gray-700">{cat}</span>
+                                  <span className="text-xs font-extrabold text-gray-900">₹{amt.toFixed(0)} <span className="text-gray-400 font-normal">({pct}%)</span></span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                  <div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-teal-400" style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* By-Day table */}
+                  {expenseSummary.by_day && Object.keys(expenseSummary.by_day).length > 0 && (
+                    <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden shadow-sm">
+                      <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
+                        <span className="text-sm">📅</span>
+                        <h3 className="text-sm font-bold text-gray-800">Breakdown by Day</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="px-4 py-2.5 text-left font-bold text-gray-600">Date</th>
+                              <th className="px-4 py-2.5 text-right font-bold text-gray-600">Spent</th>
+                              <th className="px-4 py-2.5 text-right font-bold text-gray-600">Share</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {Object.entries(expenseSummary.by_day)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([date, amt]) => {
+                                const pct = expenseSummary.total_spent > 0
+                                  ? Math.round((amt / expenseSummary.total_spent) * 100)
+                                  : 0;
+                                return (
+                                  <tr key={date} className="hover:bg-gray-50/60 transition-colors">
+                                    <td className="px-4 py-2.5 font-medium text-gray-700">{date}</td>
+                                    <td className="px-4 py-2.5 text-right font-extrabold text-gray-900">₹{Number(amt).toFixed(0)}</td>
+                                    <td className="px-4 py-2.5 text-right text-gray-500">{pct}%</td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-emerald-50">
+                              <td className="px-4 py-2.5 font-bold text-emerald-800">Total</td>
+                              <td className="px-4 py-2.5 text-right font-extrabold text-emerald-800">₹{expenseSummary.total_spent}</td>
+                              <td className="px-4 py-2.5 text-right font-bold text-emerald-700">100%</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tip */}
+                <div className="mt-4 flex items-start gap-2.5 bg-white/70 border border-emerald-100 rounded-xl p-3">
+                  <span className="text-base flex-shrink-0">💡</span>
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    <span className="font-bold">Tip:</span> During your trip you can tell the AI Companion things like{" "}
+                    <span className="font-semibold italic">"add ₹200 for food today"</span> or{" "}
+                    <span className="font-semibold italic">"log ₹500 for cab yesterday"</span> to automatically update your budget tracker.
+                  </p>
                 </div>
               </section>
             )}
@@ -776,13 +960,20 @@ export default function TripDetails() {
               {/* Day blocks */}
               <div id="day-blocks" className="mt-8">
                 {(destinationData.days || []).map((day) => (
-                  <DayBlock key={day.day} day={day} tripStatus={trip?.status} />
+                  <DayBlock key={day.day} day={day} tripStatus={trip?.status} onStatusChange={loadExpenseSummary} />
                 ))}
               </div>
             </section>
           </>
         )}
       </div>
+
+      {/* ── Checklist Modal ───────────────────────────────────────────────────── */}
+      <ChecklistModal
+        open={checklistOpen}
+        onClose={() => setChecklistOpen(false)}
+        onActivityToggled={loadExpenseSummary}
+      />
 
       {/* ── AI Companion Chatbot ─────────────────────────────────────────────── */}
       <TripChatbot tripId={tripId} />

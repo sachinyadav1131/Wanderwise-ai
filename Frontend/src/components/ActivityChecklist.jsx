@@ -55,7 +55,7 @@ const findNextActivity = (itinerary, currentActivityId) => {
  *   description   – optional short description
  *   disabled      – boolean
  */
-export default function ActivityChecklist({ activityId, dbId, initialStatus, label, timing, description, disabled }) {
+export default function ActivityChecklist({ activityId, dbId, initialStatus, label, timing, description, disabled, onStatusChange }) {
   const dispatch = useDispatch();
   
   const itinerary = useSelector((state) => state.itinerary.itinerary);
@@ -73,16 +73,25 @@ export default function ActivityChecklist({ activityId, dbId, initialStatus, lab
       : "group hover:border-indigo-300 hover:bg-indigo-50/40 cursor-pointer"
   }`;
 
-  const handleClick = async () => {
+  const handleClick = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     console.log("ActivityChecklist clicked:", { activityId, dbId, isComplete, label });
     if (!disabled && dbId && activeTrip) {
       const nextStatus = isComplete ? "Pending" : "Completed";
       try {
         console.log(`Sending PATCH request to set status to ${nextStatus}...`);
-        await axios.patch(`/api/v1/activities/${dbId}/status`, { status: nextStatus });
+        const patchRes = await axios.patch(`/api/v1/activities/${dbId}/status`, { status: nextStatus });
         
         console.log("Refetching itinerary...");
         await dispatch(fetchItinerary(activeTrip._id));
+
+        // Notify parent for live budget tracker refresh
+        if (onStatusChange) {
+          onStatusChange(patchRes.data?.activitySpent ?? null);
+        }
         
         if (nextStatus === "Completed" && itinerary) {
           console.log("Finding next activity...");
@@ -128,6 +137,7 @@ export default function ActivityChecklist({ activityId, dbId, initialStatus, lab
 
   return (
     <Component
+      type={disabled ? undefined : "button"}
       id={`checklist-${activityId}`}
       onClick={handleClick}
       className={containerClasses}

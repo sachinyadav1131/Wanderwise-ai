@@ -40,6 +40,7 @@ export const createTrip = asyncHandler(async (req, res) => {
     travelerCount,
     budgetTarget,
     exclusions,
+    tripEndTime,
   } = req.body;
 
   try {
@@ -98,6 +99,7 @@ export const createTrip = asyncHandler(async (req, res) => {
       interests,
       placesToAvoid,
       specialNotes,
+      tripEndTime: tripEndTime || "08:00 PM",
       coverImage,
       status: "Planned",
     });
@@ -252,8 +254,8 @@ export const startTrip = asyncHandler(async (req, res) => {
         lat: 28.6129,
         lng: 77.2295,
       },
-      start_time: "08:00 AM",
-      end_time: "08:00 PM",
+      start_time: "09:00 AM",
+      end_time: trip.tripEndTime || "08:00 PM",
     }),
   });
 
@@ -292,6 +294,60 @@ export const startTrip = asyncHandler(async (req, res) => {
     message: "Trip started and itinerary scheduled.",
     data: {
       trip,
+      schedule: scheduledDays,
+    },
+  });
+});
+
+// @desc    Get live timeline schedule for a trip
+// @route   GET /api/v1/trips/:tripId/schedule
+// @access  Private
+export const getTripSchedule = asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.tripId);
+  if (!trip) {
+    res.status(404);
+    throw new Error("Trip not found.");
+  }
+
+  if (trip.user.toString() !== req.user._id.toString()) {
+    res.status(401);
+    throw new Error("Not authorized to access this trip's schedule.");
+  }
+
+  const activities = await Activity.find({ trip: trip._id }).sort({ dayNumber: 1, orderIndex: 1, createdAt: 1 });
+  const bucketPlaces = activities.map((activity) => ({
+    name: activity.title,
+    dayNumber: activity.dayNumber || 1,
+    location: activity.location,
+    lat: activity.location?.lat || 28.6129,
+    lng: activity.location?.lng || 77.2295,
+    minDuration: activity.estimatedDuration || 60,
+    maxDuration: Math.max(activity.estimatedDuration || 60, 90),
+    description: activity.description || "",
+    rationale: activity.rationale || "",
+  }));
+
+  const aiResponse = await fetch("http://127.0.0.1:8000/api/v1/ai/schedule-trip", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      places: bucketPlaces,
+      hotel_location: {
+        lat: 28.6129,
+        lng: 77.2295,
+      },
+      start_time: "09:00 AM",
+      end_time: trip.tripEndTime || "08:00 PM",
+    }),
+  });
+
+  const aiPayload = await aiResponse.json();
+  const scheduledDays = aiPayload?.data?.days || [];
+
+  return res.status(200).json({
+    success: true,
+    message: "Trip schedule retrieved.",
+    data: {
       schedule: scheduledDays,
     },
   });
@@ -338,7 +394,16 @@ export const getTripExpensesSummary = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to access this trip's expenses.");
   }
 
-  const fastApiResponse = await fetch(`http://127.0.0.1:8000/api/v1/ai/expenses/summary/${trip._id}?planned_budget=${encodeURIComponent(trip.totalBudget || trip.budget || 0)}`);
+  // Aggregate costs of all Completed activities from MongoDB
+  const completedActivities = await Activity.find({ trip: trip._id, status: "Completed" });
+  const activitySpent = completedActivities.reduce((sum, a) => sum + (a.cost || 0), 0);
+
+  const plannedBudget = trip.budgetTarget || trip.totalBudget || 0;
+  const fastApiResponse = await fetch(
+    `http://127.0.0.1:8000/api/v1/ai/expenses/summary/${trip._id}` +
+    `?planned_budget=${encodeURIComponent(plannedBudget)}` +
+    `&activity_spent=${encodeURIComponent(activitySpent)}`
+  );
   const fastApiPayload = await fastApiResponse.json();
 
   return res.status(200).json({

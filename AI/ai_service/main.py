@@ -304,8 +304,12 @@ async def add_expense(payload: dict[str, Any]):
 
 
 @app.get("/api/v1/ai/expenses/summary/{trip_id}", response_model=APIResponse[dict])
-async def get_expense_summary(trip_id: str, planned_budget: float = 0):
-    result = expense_db.get_expense_summary(trip_id=trip_id, planned_budget=planned_budget)
+async def get_expense_summary(trip_id: str, planned_budget: float = 0, activity_spent: float = 0.0):
+    result = expense_db.get_expense_summary(
+        trip_id=trip_id,
+        planned_budget=planned_budget,
+        activity_spent=activity_spent,
+    )
     return APIResponse(success=True, message="Expense summary retrieved.", data=result)
 
 

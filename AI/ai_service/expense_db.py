@@ -52,7 +52,7 @@ def add_expense(trip_id, date, amount, category, subcategory="", note=""):
         conn.close()
 
 
-def get_expense_summary(trip_id, planned_budget=0):
+def get_expense_summary(trip_id, planned_budget=0, activity_spent=0.0):
     conn = _connection()
     try:
         rows = conn.execute(
@@ -62,7 +62,9 @@ def get_expense_summary(trip_id, planned_budget=0):
     finally:
         conn.close()
 
-    total = sum(float(row["amount"]) for row in rows)
+    sqlite_total = sum(float(row["amount"]) for row in rows)
+    # Merge with activity costs tracked in MongoDB (passed in from Express layer)
+    total = sqlite_total + float(activity_spent or 0.0)
     categories = defaultdict(float)
     days = defaultdict(float)
     for row in rows:
@@ -73,6 +75,8 @@ def get_expense_summary(trip_id, planned_budget=0):
     return {
         "trip_id": trip_id,
         "total_spent": round(total, 2),
+        "sqlite_spent": round(sqlite_total, 2),
+        "activity_spent": round(float(activity_spent or 0.0), 2),
         "planned_budget": budget,
         "remaining_budget": round(budget - total, 2),
         "budget_percent": round((total / budget * 100) if budget else 0, 1),
@@ -82,5 +86,5 @@ def get_expense_summary(trip_id, planned_budget=0):
     }
 
 
-def summarize_expenses(trip_id, planned_budget=0):
-    return get_expense_summary(trip_id, planned_budget=planned_budget)
+def summarize_expenses(trip_id, planned_budget=0, activity_spent=0.0):
+    return get_expense_summary(trip_id, planned_budget=planned_budget, activity_spent=activity_spent)

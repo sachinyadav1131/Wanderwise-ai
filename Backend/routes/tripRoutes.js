@@ -8,6 +8,7 @@ import {
   getTripById,
   deleteTrip,
   startTrip,
+  getTripSchedule,
   addTripExpense,
   getTripExpensesSummary,
   selectRouteAlternative,
@@ -25,6 +26,7 @@ router.route("/completed").get(getCompletedTrips);
 router.route("/:id").get(getTripById).put(editTrip).delete(deleteTrip);
 router.route("/:id/route-option").patch(selectRouteAlternative);
 router.route("/:tripId/start").post(startTrip);
+router.route("/:tripId/schedule").get(getTripSchedule);
 router.route("/:tripId/expenses").post(addTripExpense);
 router.route("/:tripId/expenses/summary").get(getTripExpensesSummary);
 
