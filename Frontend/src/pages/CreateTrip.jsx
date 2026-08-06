@@ -119,10 +119,19 @@ export default function CreateTrip() {
     budgetTarget: "",
     travelerCount: "2",
     exclusions: "",
+    tripEndTime: "08:00 PM",
   });
   const [errors, setErrors] = useState({});
 
   const TOTAL_STEPS = 4;
+
+  const END_TIME_OPTIONS = [
+    { value: "06:00 PM", label: "6:00 PM" },
+    { value: "07:00 PM", label: "7:00 PM" },
+    { value: "08:00 PM", label: "8:00 PM (default)" },
+    { value: "09:00 PM", label: "9:00 PM" },
+    { value: "10:00 PM", label: "10:00 PM" },
+  ];
 
   // Validation per step
   const validate = () => {
@@ -159,6 +168,7 @@ export default function CreateTrip() {
       travelers: Number(form.travelerCount || 1),
       travelerCount: Number(form.travelerCount || 1),
       exclusions: form.exclusions.split(/\n|,|;/).map((item) => item.trim()).filter(Boolean),
+      tripEndTime: form.tripEndTime || "08:00 PM",
     };
     const result = await dispatch(createTrip(payload));
     if (createTrip.fulfilled.match(result)) {
@@ -335,6 +345,30 @@ export default function CreateTrip() {
                   className="w-full px-4 py-3.5 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 text-sm font-medium outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="trip-end-time-select">
+                  ⏰ What time should your daily itinerary end?
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {END_TIME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      id={`end-time-${opt.value.replace(/[: ]/g, "-")}`}
+                      type="button"
+                      onClick={() => setForm({ ...form, tripEndTime: opt.value })}
+                      className={`py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all duration-200 ${
+                        form.tripEndTime === opt.value
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:bg-indigo-50/30"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">AI will fill your day continuously up to this time.</p>
+              </div>
             </div>
           )}
 
@@ -411,6 +445,11 @@ export default function CreateTrip() {
             {form.travelerCount && (
               <span className="text-xs font-semibold px-3 py-1 bg-white border border-cyan-100 text-cyan-700 rounded-full shadow-sm">
                 🧳 {form.travelerCount} traveler{Number(form.travelerCount) > 1 ? "s" : ""}
+              </span>
+            )}
+            {form.tripEndTime && form.tripEndTime !== "08:00 PM" && (
+              <span className="text-xs font-semibold px-3 py-1 bg-white border border-violet-100 text-violet-700 rounded-full shadow-sm">
+                ⏰ Ends {form.tripEndTime}
               </span>
             )}
           </div>

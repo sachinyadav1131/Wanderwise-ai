@@ -15,6 +15,7 @@ class TripRequest(BaseModel):
     interests: list[str] = Field(default_factory=list)
     placesToAvoid: list[str] = Field(default_factory=list)
     specialNotes: Optional[str] = None
+    tripEndTime: str = "08:00 PM"
 
 class WorkflowState(BaseModel):
     tripId: str

@@ -82,6 +82,11 @@ const tripSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    tripEndTime: {
+      type: String,
+      default: "08:00 PM",
+      trim: true,
+    },
     coverImage: {
       type: String,
     },

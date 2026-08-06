@@ -123,16 +123,23 @@ Return ONLY a valid JSON object matching this schema (do not wrap in markdown or
 {{
   "places": [
     {{
-      "name": "Name of the place/attraction/cafe",
+      "name": "Exact name of the place/attraction",
       "category": "{category}",
-      "location": "Specific location or address in {destination}",
+      "location": "Specific address or neighbourhood in {destination}",
       "entry_fee": 0.0,
       "avg_duration_minutes": 90,
       "tags": ["tag1", "tag2"],
-      "is_indoor": false
+      "is_indoor": false,
+      "latitude": 35.6762,
+      "longitude": 139.6503
     }}
   ]
-}}"""
+}}
+
+IMPORTANT: The latitude and longitude MUST be the real, accurate GPS coordinates of each place.
+For example, Tokyo Tower is at latitude 35.6586, longitude 139.7454.
+Do NOT use 0.0 or placeholder values — provide the actual coordinates.
+"""
             response_text = await llm_service.generate_response(
                 prompt=prompt,
                 system_instruction="You are a helpful travel assistant. Always reply with raw valid JSON matching the requested schema. No conversational preamble.",
@@ -159,6 +166,22 @@ Return ONLY a valid JSON object matching this schema (do not wrap in markdown or
             normalized = []
             for item in raw_places:
                 if isinstance(item, dict):
+                    lat_val = item.get("latitude")
+                    lng_val = item.get("longitude")
+                    # Accept only plausible coordinate ranges; reject 0,0 or out-of-range
+                    if lat_val is not None and lng_val is not None:
+                        try:
+                            lat_val = float(lat_val)
+                            lng_val = float(lng_val)
+                            if not (-90 <= lat_val <= 90 and -180 <= lng_val <= 180):
+                                lat_val = None
+                                lng_val = None
+                            if lat_val == 0.0 and lng_val == 0.0:
+                                lat_val = None
+                                lng_val = None
+                        except (TypeError, ValueError):
+                            lat_val = None
+                            lng_val = None
                     normalized.append({
                         "name": item.get("name") or "Sight",
                         "category": item.get("category") or category,
@@ -166,8 +189,9 @@ Return ONLY a valid JSON object matching this schema (do not wrap in markdown or
                         "entry_fee": float(item.get("entry_fee") or 0.0),
                         "avg_duration_minutes": int(item.get("avg_duration_minutes") or 90),
                         "tags": item.get("tags") or [],
-                        "is_indoor": bool(item.get("is_indoor") or False)
-                        ,"latitude": item.get("latitude"), "longitude": item.get("longitude")
+                        "is_indoor": bool(item.get("is_indoor") or False),
+                        "latitude": lat_val,
+                        "longitude": lng_val,
                     })
                 elif isinstance(item, str):
                     normalized.append({
