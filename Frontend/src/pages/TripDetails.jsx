@@ -8,6 +8,7 @@ import { setActiveSuggestion } from "../store/slices/suggestionSlice";
 import TripChatbot from "../components/TripChatbot";
 import ActivityChecklist from "../components/ActivityChecklist";
 import ChecklistModal from "../components/ChecklistModal";
+import { toast } from "react-toastify";
 
 // ─── Star Rating ──────────────────────────────────────────────────────────────
 function StarRating({ rating }) {
@@ -569,6 +570,7 @@ export default function TripDetails() {
   const [routeSelectionLoading, setRouteSelectionLoading] = useState(false);
   const [expenseSummary, setExpenseSummary] = useState(null);
   const [checklistOpen, setChecklistOpen] = useState(false);
+  const [hasNotifiedOverBudget, setHasNotifiedOverBudget] = useState(false);
 
   const loadExpenseSummary = useCallback(async () => {
     if (!tripId) return;
@@ -669,6 +671,19 @@ export default function TripDetails() {
   const heroImage =
     trip?.coverImage ||
     "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1200&auto=format&fit=crop";
+
+  useEffect(() => {
+    if (plannerSummary?.isOverBudget && !hasNotifiedOverBudget) {
+      toast.error(`Warning: You have exceeded your trip budget! Remaining balance: ₹${plannerSummary.remainingBudget}`, {
+        position: "top-center",
+        autoClose: 5000,
+        theme: "colored"
+      });
+      setHasNotifiedOverBudget(true);
+    } else if (plannerSummary && !plannerSummary.isOverBudget && hasNotifiedOverBudget) {
+      setHasNotifiedOverBudget(false);
+    }
+  }, [plannerSummary, hasNotifiedOverBudget]);
 
   const handleScrollToSection = (tag) => {
     let targetId = "";
