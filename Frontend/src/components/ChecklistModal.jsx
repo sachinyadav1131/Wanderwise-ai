@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
-import { fetchItinerary } from "../store/slices/itinerarySlice";
+import { updateActivityStatusLocal } from "../store/slices/itinerarySlice";
 
 /**
  * ChecklistModal — triggered by the ✅ Checklist feature tag.
@@ -40,14 +40,18 @@ export default function ChecklistModal({ open, onClose, onActivityToggled }) {
     if (!activeTrip || !act._id || togglingId === act._id) return;
     const nextStatus = act.status === "Completed" ? "Pending" : "Completed";
     setTogglingId(act._id);
+
+    // Instant optimistic local update
+    dispatch(updateActivityStatusLocal({ activityId: act._id, status: nextStatus }));
+
     try {
       const res = await axios.patch(`/api/v1/activities/${act._id}/status`, { status: nextStatus });
-      await dispatch(fetchItinerary(activeTrip._id));
       if (onActivityToggled) {
         onActivityToggled(res.data?.activitySpent ?? null);
       }
     } catch (err) {
       console.error("Checklist toggle failed:", err.message);
+      dispatch(updateActivityStatusLocal({ activityId: act._id, status: act.status }));
     } finally {
       setTogglingId(null);
     }

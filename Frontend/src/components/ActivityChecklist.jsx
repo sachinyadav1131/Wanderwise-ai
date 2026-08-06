@@ -1,7 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
-import { fetchItinerary } from "../store/slices/itinerarySlice";
+import { updateActivityStatusLocal } from "../store/slices/itinerarySlice";
 import { setActiveSuggestion } from "../store/slices/suggestionSlice";
 
 // Helper to find the next scheduled activity in chronological order
@@ -81,12 +81,13 @@ export default function ActivityChecklist({ activityId, dbId, initialStatus, lab
     console.log("ActivityChecklist clicked:", { activityId, dbId, isComplete, label });
     if (!disabled && dbId && activeTrip) {
       const nextStatus = isComplete ? "Pending" : "Completed";
+      
+      // Instant optimistic local update with 0 page refresh
+      dispatch(updateActivityStatusLocal({ activityId: dbId, status: nextStatus }));
+
       try {
         console.log(`Sending PATCH request to set status to ${nextStatus}...`);
         const patchRes = await axios.patch(`/api/v1/activities/${dbId}/status`, { status: nextStatus });
-        
-        console.log("Refetching itinerary...");
-        await dispatch(fetchItinerary(activeTrip._id));
 
         // Notify parent for live budget tracker refresh
         if (onStatusChange) {

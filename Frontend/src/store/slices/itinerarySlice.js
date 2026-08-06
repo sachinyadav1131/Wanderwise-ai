@@ -142,6 +142,26 @@ const itinerarySlice = createSlice({
       state.itinerary = null;
       state.error = null;
     },
+    updateActivityStatusLocal(state, action) {
+      const { activityId, status } = action.payload || {};
+      if (!state.itinerary || !state.itinerary.days || !activityId) return;
+
+      for (const day of state.itinerary.days) {
+        if (day.activitiesList) {
+          const act = day.activitiesList.find((a) => a._id === activityId);
+          if (act) {
+            act.status = status;
+          }
+        }
+        if (day.slots) {
+          for (const slotKey of Object.keys(day.slots)) {
+            if (day.slots[slotKey] && day.slots[slotKey]._id === activityId) {
+              day.slots[slotKey].status = status;
+            }
+          }
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -160,5 +180,5 @@ const itinerarySlice = createSlice({
   },
 });
 
-export const { clearItinerary } = itinerarySlice.actions;
+export const { clearItinerary, updateActivityStatusLocal } = itinerarySlice.actions;
 export default itinerarySlice.reducer;
