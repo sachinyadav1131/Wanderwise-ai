@@ -12,6 +12,7 @@ const AI_BASE_URL = () => (process.env.AI_SERVICE_URL || "https://wanderwise-ai-
 
 let lastAwakePing = 0;
 const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let awakePromise = null;
 
 export async function ensureAIAwake() {
   const now = Date.now();
@@ -19,27 +20,42 @@ export async function ensureAIAwake() {
     return;
   }
   
-  const url = `${AI_BASE_URL()}/docs`;
-  let attempts = 0;
-  const maxAttempts = 12; // Wait up to 60 seconds (12 * 5s)
-
-  while (attempts < maxAttempts) {
-    attempts++;
-    try {
-      const res = await fetch(url, { method: "HEAD" });
-      if (res.ok) {
-        lastAwakePing = Date.now();
-        return; // Fully awake and responsive!
-      }
-      // If we get 502/503 from Render, it's still booting. Wait 5 seconds.
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    } catch (err) {
-      // Network error, wait and retry
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
+  // If a wake-up process is already running, just wait for it to finish
+  if (awakePromise) {
+    await awakePromise;
+    return;
   }
   
-  console.warn("AI wakeup ping timed out after 60 seconds, proceeding anyway...");
+  awakePromise = (async () => {
+    const url = `${AI_BASE_URL()}/docs`;
+    let attempts = 0;
+    const maxAttempts = 12; // Wait up to 60 seconds (12 * 5s)
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const res = await fetch(url, { method: "HEAD" });
+        if (res.ok) {
+          lastAwakePing = Date.now();
+          return; // Fully awake and responsive!
+        }
+        // If we get 502/503 from Render, it's still booting. Wait 5 seconds.
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } catch (err) {
+        // Network error, wait and retry
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
+    
+    console.warn("AI wakeup ping timed out after 60 seconds, proceeding anyway...");
+  })();
+
+  try {
+    await awakePromise;
+  } finally {
+    // Reset the promise so future calls can trigger a new wake-up if needed
+    awakePromise = null;
+  }
 }
 
 /**
