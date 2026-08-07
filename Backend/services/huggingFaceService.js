@@ -4,7 +4,7 @@
  */
 export const huggingFaceService = {
   generateDestinationImage: async (destination) => {
-    const aiBaseUrl = process.env.AI_SERVICE_URL || "http://localhost:8000";
+    const aiBaseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
     try {
       const response = await fetch(`${aiBaseUrl}/api/v1/ai/cover-image`, {
         method: "POST",

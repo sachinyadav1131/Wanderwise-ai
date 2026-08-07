@@ -246,7 +246,7 @@ export const startTrip = asyncHandler(async (req, res) => {
     rationale: activity.rationale || "",
   }));
 
-  const baseUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+  const baseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
   const aiResponse = await fetch(`${baseUrl}/api/v1/ai/schedule-trip`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -329,7 +329,7 @@ export const getTripSchedule = asyncHandler(async (req, res) => {
     rationale: activity.rationale || "",
   }));
 
-  const baseUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+  const baseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
   const aiResponse = await fetch(`${baseUrl}/api/v1/ai/schedule-trip`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -368,7 +368,7 @@ export const addTripExpense = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to access this trip's expenses.");
   }
 
-  const baseUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+  const baseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
   const fastApiResponse = await fetch(`${baseUrl}/api/v1/ai/expenses/add`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -428,7 +428,7 @@ export const getTripExpensesSummary = asyncHandler(async (req, res) => {
 
   const plannedBudget = trip.budgetTarget || trip.totalBudget || 0;
   const fastApiResponse = await fetch(
-    `${process.env.AI_SERVICE_URL || "http://127.0.0.1:8000"}/api/v1/ai/expenses/summary/${trip._id}` +
+    `${process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com"}/api/v1/ai/expenses/summary/${trip._id}` +
     `?planned_budget=${encodeURIComponent(plannedBudget)}` +
     `&activity_spent=${encodeURIComponent(activitySpent)}`
   );

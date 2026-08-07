@@ -8,7 +8,7 @@ import ErrorHandler from "../middleware/errorMiddleware.js";
 // ---------------------------------------------------------------------------
 // FastAPI HTTP Client Helper
 // ---------------------------------------------------------------------------
-const AI_BASE_URL = () => process.env.AI_SERVICE_URL || "http://localhost:8000";
+const AI_BASE_URL = () => process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
 
 /**
  * Generic helper to POST JSON to the FastAPI AI microservice.
