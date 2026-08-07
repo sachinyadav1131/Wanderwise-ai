@@ -56,4 +56,15 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.get("/api/health/wakeup", (req, res) => {
+  // Fire and forget AI wakeup
+  import("./services/aiService.js")
+    .then(({ ensureAIAwake }) => {
+      ensureAIAwake().catch(console.error);
+    })
+    .catch(console.error);
+    
+  res.status(200).json({ success: true, message: "Wakeup signal received" });
+});
+
 app.use(errorMiddleware);

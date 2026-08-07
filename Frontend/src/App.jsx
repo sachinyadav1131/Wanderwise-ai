@@ -51,6 +51,11 @@ function App() {
   // Load current user profile from cookie session on initial mount
   useEffect(() => {
     dispatch(loadCurrentUser());
+    
+    // Proactively wake up the AI service as soon as the app loads
+    // so it's ready by the time the user clicks on a trip
+    fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'}/api/health/wakeup`)
+      .catch(() => {}); // silently ignore errors
   }, [dispatch]);
 
   return (

@@ -11,7 +11,7 @@ import ErrorHandler from "../middleware/errorMiddleware.js";
 const AI_BASE_URL = () => (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
 
 let lastAwakePing = 0;
-const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const PING_INTERVAL_MS = 25 * 60 * 1000; // 25 minutes
 let awakePromise = null;
 
 export async function ensureAIAwake() {
@@ -29,7 +29,7 @@ export async function ensureAIAwake() {
   awakePromise = (async () => {
     const url = `${AI_BASE_URL()}/docs`;
     let attempts = 0;
-    const maxAttempts = 18; // Wait up to 90 seconds (18 * 5s)
+    const maxAttempts = 24; // Wait up to 120 seconds (24 * 5s)
 
     console.log(`[AI Wakeup] Starting ping loop to ${url}`);
     while (attempts < maxAttempts) {
@@ -37,7 +37,7 @@ export async function ensureAIAwake() {
       try {
         const pingUrl = `${url}?t=${Date.now()}`;
         const res = await fetch(pingUrl, { 
-          method: "HEAD",
+          method: "GET",
           headers: {
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
