@@ -52,9 +52,12 @@ function App() {
   useEffect(() => {
     dispatch(loadCurrentUser());
     
-    // Proactively wake up the AI service as soon as the app loads
-    // so it's ready by the time the user clicks on a trip
-    fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'}/api/health/wakeup`)
+    // Proactively wake up the AI service from the CLIENT SIDE!
+    // We must ping the AI service directly from the browser because requests
+    // from the Node backend on Render might resolve to Render's internal network,
+    // which instantly drops requests to sleeping services instead of waking them up.
+    // Hitting it from the public internet (the browser) guarantees it wakes up.
+    fetch("https://wanderwise-ai-service.onrender.com/docs", { mode: 'no-cors' })
       .catch(() => {}); // silently ignore errors
   }, [dispatch]);
 
