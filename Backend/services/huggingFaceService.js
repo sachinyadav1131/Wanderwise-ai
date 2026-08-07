@@ -1,10 +1,13 @@
+import { ensureAIAwake } from "./aiService.js";
+
 /**
  * Hugging Face Service Proxy
  * Delegates cover image generation to the FastAPI AI microservice.
  */
 export const huggingFaceService = {
   generateDestinationImage: async (destination) => {
-    const aiBaseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
+    const aiBaseUrl = (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
+    await ensureAIAwake();
     try {
       const response = await fetch(`${aiBaseUrl}/api/v1/ai/cover-image`, {
         method: "POST",

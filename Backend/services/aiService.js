@@ -10,12 +10,33 @@ import ErrorHandler from "../middleware/errorMiddleware.js";
 // ---------------------------------------------------------------------------
 const AI_BASE_URL = () => process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
 
+let lastAwakePing = 0;
+const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+export async function ensureAIAwake() {
+  const now = Date.now();
+  if (now - lastAwakePing < PING_INTERVAL_MS) {
+    return;
+  }
+  
+  try {
+    const url = `${AI_BASE_URL()}/docs`;
+    // Send a lightweight HEAD request to wake the service safely
+    await fetch(url, { method: "HEAD" });
+    lastAwakePing = Date.now();
+  } catch (err) {
+    console.error("AI wakeup ping failed:", err.message);
+  }
+}
+
 /**
  * Generic helper to POST JSON to the FastAPI AI microservice.
  * Unwraps the standard APIResponse envelope { success, message, data }.
  * Throws ErrorHandler on non-2xx responses so Express error middleware can catch it.
  */
 async function callFastAPI(endpoint, body) {
+  await ensureAIAwake();
+  
   const url = `${AI_BASE_URL()}${endpoint}`;
 
   let res;

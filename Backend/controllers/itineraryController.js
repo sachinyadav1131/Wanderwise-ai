@@ -3,7 +3,8 @@ import { Itinerary } from "../models/Itinerary.js";
 import { Activity } from "../models/Activity.js";
 import { StaySuggestion } from "../models/StaySuggestion.js";
 import { FoodSuggestion } from "../models/FoodSuggestion.js";
-import { aiService } from "../services/aiService.js";
+import { huggingFaceService } from "../services/huggingFaceService.js";
+import { aiService, ensureAIAwake } from "../services/aiService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import ErrorHandler from "../middleware/errorMiddleware.js";
 
@@ -216,7 +217,8 @@ export const searchImage = asyncHandler(async (req, res) => {
     throw new Error("Search query parameter is required.");
   }
 
-  const aiBaseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
+  const aiBaseUrl = (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
+  await ensureAIAwake();
   try {
     const response = await fetch(`${aiBaseUrl}/api/v1/ai/cover-image`, {
       method: "POST",

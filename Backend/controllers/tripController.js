@@ -4,7 +4,7 @@ import { Activity } from "../models/Activity.js";
 import { StaySuggestion } from "../models/StaySuggestion.js";
 import { FoodSuggestion } from "../models/FoodSuggestion.js";
 import { Notification } from "../models/Notification.js";
-import { aiService } from "../services/aiService.js";
+import { aiService, ensureAIAwake } from "../services/aiService.js";
 import { huggingFaceService } from "../services/huggingFaceService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
@@ -246,7 +246,8 @@ export const startTrip = asyncHandler(async (req, res) => {
     rationale: activity.rationale || "",
   }));
 
-  const baseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
+  const baseUrl = (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
+  await ensureAIAwake();
   const aiResponse = await fetch(`${baseUrl}/api/v1/ai/schedule-trip`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -329,7 +330,8 @@ export const getTripSchedule = asyncHandler(async (req, res) => {
     rationale: activity.rationale || "",
   }));
 
-  const baseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
+  const baseUrl = (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
+  await ensureAIAwake();
   const aiResponse = await fetch(`${baseUrl}/api/v1/ai/schedule-trip`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -368,7 +370,8 @@ export const addTripExpense = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to access this trip's expenses.");
   }
 
-  const baseUrl = process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
+  const baseUrl = (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
+  await ensureAIAwake();
   const fastApiResponse = await fetch(`${baseUrl}/api/v1/ai/expenses/add`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -426,6 +429,7 @@ export const getTripExpensesSummary = asyncHandler(async (req, res) => {
   const completedActivities = await Activity.find({ trip: trip._id, status: "Completed" });
   const activitySpent = completedActivities.reduce((sum, a) => sum + (a.cost || 0), 0);
 
+  await ensureAIAwake();
   const plannedBudget = trip.budgetTarget || trip.totalBudget || 0;
   const fastApiResponse = await fetch(
     `${process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com"}/api/v1/ai/expenses/summary/${trip._id}` +
