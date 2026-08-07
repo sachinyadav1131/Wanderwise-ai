@@ -29,7 +29,7 @@ export async function ensureAIAwake() {
   awakePromise = (async () => {
     const url = `${AI_BASE_URL()}/docs`;
     let attempts = 0;
-    const maxAttempts = 12; // Wait up to 60 seconds (12 * 5s)
+    const maxAttempts = 18; // Wait up to 90 seconds (18 * 5s)
 
     console.log(`[AI Wakeup] Starting ping loop to ${url}`);
     while (attempts < maxAttempts) {
