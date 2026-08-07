@@ -1,4 +1,3 @@
-import { ensureAIAwake } from "./aiService.js";
 
 /**
  * Hugging Face Service Proxy
@@ -7,7 +6,6 @@ import { ensureAIAwake } from "./aiService.js";
 export const huggingFaceService = {
   generateDestinationImage: async (destination) => {
     const aiBaseUrl = (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
-    await ensureAIAwake();
     try {
       const response = await fetch(`${aiBaseUrl}/api/v1/ai/cover-image`, {
         method: "POST",

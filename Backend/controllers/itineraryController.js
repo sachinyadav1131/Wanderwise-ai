@@ -4,7 +4,7 @@ import { Activity } from "../models/Activity.js";
 import { StaySuggestion } from "../models/StaySuggestion.js";
 import { FoodSuggestion } from "../models/FoodSuggestion.js";
 import { huggingFaceService } from "../services/huggingFaceService.js";
-import { aiService, ensureAIAwake } from "../services/aiService.js";
+import { aiService } from "../services/aiService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import ErrorHandler from "../middleware/errorMiddleware.js";
 
@@ -218,7 +218,6 @@ export const searchImage = asyncHandler(async (req, res) => {
   }
 
   const aiBaseUrl = (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
-  await ensureAIAwake();
   try {
     const response = await fetch(`${aiBaseUrl}/api/v1/ai/cover-image`, {
       method: "POST",

@@ -10,74 +10,12 @@ import ErrorHandler from "../middleware/errorMiddleware.js";
 // ---------------------------------------------------------------------------
 const AI_BASE_URL = () => (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
 
-let lastAwakePing = 0;
-const PING_INTERVAL_MS = 25 * 60 * 1000; // 25 minutes
-let awakePromise = null;
-
-export async function ensureAIAwake() {
-  const now = Date.now();
-  if (now - lastAwakePing < PING_INTERVAL_MS) {
-    return;
-  }
-  
-  // If a wake-up process is already running, just wait for it to finish
-  if (awakePromise) {
-    await awakePromise;
-    return;
-  }
-  
-  awakePromise = (async () => {
-    const url = `${AI_BASE_URL()}/docs`;
-    let attempts = 0;
-    const maxAttempts = 24; // Wait up to 120 seconds (24 * 5s)
-
-    console.log(`[AI Wakeup] Starting ping loop to ${url}`);
-    while (attempts < maxAttempts) {
-      attempts++;
-      try {
-        const pingUrl = `${url}?t=${Date.now()}`;
-        const res = await fetch(pingUrl, { 
-          method: "GET",
-          headers: {
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-            "Connection": "close"
-          }
-        });
-        if (res.ok) {
-          lastAwakePing = Date.now();
-          console.log(`[AI Wakeup] SUCCESS! AI service responded 200 OK after ${attempts} attempt(s).`);
-          return; // Fully awake and responsive!
-        }
-        // If we get 502/503 from Render, it's still booting. Wait 5 seconds.
-        console.log(`[AI Wakeup] Attempt ${attempts}: Got status ${res.status}. Still booting, waiting 5s...`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      } catch (err) {
-        // Network error, wait and retry
-        console.log(`[AI Wakeup] Attempt ${attempts}: Network error (${err.message}). Still booting, waiting 5s...`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-    }
-    
-    console.warn(`[AI Wakeup] TIMEOUT after ${maxAttempts} attempts. Proceeding anyway...`);
-  })();
-
-  try {
-    await awakePromise;
-  } finally {
-    // Reset the promise so future calls can trigger a new wake-up if needed
-    awakePromise = null;
-  }
-}
-
 /**
  * Generic helper to POST JSON to the FastAPI AI microservice.
  * Unwraps the standard APIResponse envelope { success, message, data }.
  * Throws ErrorHandler on non-2xx responses so Express error middleware can catch it.
  */
 async function callFastAPI(endpoint, body) {
-  await ensureAIAwake();
-  
   const url = `${AI_BASE_URL()}${endpoint}`;
 
   let res;
