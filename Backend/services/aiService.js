@@ -8,7 +8,7 @@ import ErrorHandler from "../middleware/errorMiddleware.js";
 // ---------------------------------------------------------------------------
 // FastAPI HTTP Client Helper
 // ---------------------------------------------------------------------------
-const AI_BASE_URL = () => process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com";
+const AI_BASE_URL = () => (process.env.AI_SERVICE_URL || "https://wanderwise-ai-service.onrender.com").replace(/\/$/, "");
 
 let lastAwakePing = 0;
 const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
