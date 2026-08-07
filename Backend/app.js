@@ -25,6 +25,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Debug Logging Middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] Incoming Request: ${req.method} ${req.url}`);
+  next();
+});
+
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/trips", tripRoutes);

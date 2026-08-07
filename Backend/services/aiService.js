@@ -31,23 +31,27 @@ export async function ensureAIAwake() {
     let attempts = 0;
     const maxAttempts = 12; // Wait up to 60 seconds (12 * 5s)
 
+    console.log(`[AI Wakeup] Starting ping loop to ${url}`);
     while (attempts < maxAttempts) {
       attempts++;
       try {
         const res = await fetch(url, { method: "HEAD" });
         if (res.ok) {
           lastAwakePing = Date.now();
+          console.log(`[AI Wakeup] SUCCESS! AI service responded 200 OK after ${attempts} attempt(s).`);
           return; // Fully awake and responsive!
         }
         // If we get 502/503 from Render, it's still booting. Wait 5 seconds.
+        console.log(`[AI Wakeup] Attempt ${attempts}: Got status ${res.status}. Still booting, waiting 5s...`);
         await new Promise(resolve => setTimeout(resolve, 5000));
       } catch (err) {
         // Network error, wait and retry
+        console.log(`[AI Wakeup] Attempt ${attempts}: Network error (${err.message}). Still booting, waiting 5s...`);
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
     
-    console.warn("AI wakeup ping timed out after 60 seconds, proceeding anyway...");
+    console.warn(`[AI Wakeup] TIMEOUT after ${maxAttempts} attempts. Proceeding anyway...`);
   })();
 
   try {
