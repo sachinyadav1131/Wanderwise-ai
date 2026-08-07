@@ -108,12 +108,10 @@ function App() {
         <Route
           path="/reset-password/:token"
           element={
-            <GuestRoute>
-              <>
-                <Navbar />
-                <ResetPassword />
-              </>
-            </GuestRoute>
+            <>
+              <Navbar />
+              <ResetPassword />
+            </>
           }
         />
 
