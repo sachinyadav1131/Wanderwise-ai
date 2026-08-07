@@ -35,7 +35,15 @@ export async function ensureAIAwake() {
     while (attempts < maxAttempts) {
       attempts++;
       try {
-        const res = await fetch(url, { method: "HEAD" });
+        const pingUrl = `${url}?t=${Date.now()}`;
+        const res = await fetch(pingUrl, { 
+          method: "HEAD",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Connection": "close"
+          }
+        });
         if (res.ok) {
           lastAwakePing = Date.now();
           console.log(`[AI Wakeup] SUCCESS! AI service responded 200 OK after ${attempts} attempt(s).`);
