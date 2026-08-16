@@ -4,6 +4,9 @@ Returns attractions, indoor backups, markets, and cafes for a destination.
 Mock implementation — ready to swap for a live Places API (e.g., Google Places, Foursquare).
 """
 import logging
+import os
+import httpx
+from ai_service.config.settings import settings
 from ai_service.schemas.domain import PlacesResult, PlaceItem
 
 logger = logging.getLogger("mcp.places_tool")
@@ -71,6 +74,45 @@ _PLACES_CATALOGUE: dict[str, list[dict]] = {
          "entry_fee": 0.0, "avg_duration_minutes": 75, "tags": ["Parsi food", "unique", "brunch"], "is_indoor": True},
     ],
 }
+
+
+async def get_exact_coordinates_from_google(place_name: str, city: str) -> dict[str, float] | None:
+    """
+    Calls Google Geocoding API to resolve a place name and city 
+    into exact latitude and longitude.
+    """
+    api_key = (
+        getattr(settings, "google_maps_api_key", "")
+        or os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    ).strip()
+
+    if not api_key:
+        logger.warning("[Geocoding] Google Maps API key is missing. Skipping geocoding.")
+        return None
+
+    address_query = f"{place_name}, {city}"
+    geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                geocode_url, 
+                params={"address": address_query, "key": api_key}
+            )
+            
+            if response.status_code == 200:
+                res_data = response.json()
+                if res_data.get("status") == "OK" and res_data.get("results"):
+                    location = res_data["results"][0]["geometry"]["location"]
+                    logger.info(f"[Geocoding] Successfully resolved '{address_query}' to {location}")
+                    return {
+                        "latitude": float(location["lat"]),
+                        "longitude": float(location["lng"])
+                    }
+    except Exception as e:
+        logger.error(f"[Geocoding] Failed to resolve '{address_query}' via Google: {str(e)}")
+    
+    return None
 
 
 def _interest_score(place: dict, interests: list[str]) -> int:
@@ -211,6 +253,17 @@ Do NOT use 0.0 or placeholder values — provide the actual coordinates.
 
     # Sort by interest match score (descending), preserving original order on ties
     scored = sorted(raw_places, key=lambda p: _interest_score(p, interests), reverse=True)
+
+    # Resolve exact coordinates using Google Maps if available
+    for place_data in scored:
+        if not place_data.get("latitude") or not place_data.get("longitude") or (place_data.get("latitude") == 0.0 and place_data.get("longitude") == 0.0):
+            exact_coords = await get_exact_coordinates_from_google(
+                place_name=place_data.get("name"),
+                city=destination
+            )
+            if exact_coords:
+                place_data["latitude"] = exact_coords["latitude"]
+                place_data["longitude"] = exact_coords["longitude"]
 
     places = [PlaceItem(**p) for p in scored]
 
